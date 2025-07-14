@@ -5,4 +5,13 @@ GoalMenu {
   margin: 1 4;
   padding: 1 1;
 }
+  
 
+#goal_input {
+  width: 30%;
+}
+
+#due_date {
+width: 30%;
+margin: 1 0;
+}

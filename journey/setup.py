@@ -1,25 +1,38 @@
 
 from textual.app import App, ComposeResult
-from textual.containers import HorizontalGroup, HorizontalScroll, VerticalGroup, VerticalScroll
-from textual.widgets import Button, Digits, Footer, Header , Label, Tree, Label
+from textual.containers import Horizontal, HorizontalGroup, HorizontalScroll, VerticalGroup, VerticalScroll
+from textual.widgets import Button, Digits, Footer, Header, Input , Label, Tree, Label
 from rich.text import Text
 
 
 class GoalMenu(VerticalGroup):
     """The main goals area tree"""
 
-    def insert_new_goalTree(self, tree_label: str, tree_id: str):
-        tree: Tree[str] = Tree(tree_label, id=tree_id)
+    def insert_new_goalTree(self, main_goal_table: str, tree_id: str):
+        tree: Tree[str] = Tree(main_goal_table, id=tree_id)
         tree.root.expand()
-        main_goals = tree.root.add("Testing", expand=True)
-        tree.root.add_leaf('SUB GOALS')
-        [main_goals.add_leaf(str(i)) for i in range(8)]
         return tree
 
+    
+
+    def insert_new_goal(self, tree_root: Tree[str], goal_name: str) -> None:
+        tree_root.root.add(goal_name)
+        
+
     def compose(self) -> ComposeResult:
-        yield Label(Text('Goals', style="bold red underline", justify='center'))
         yield self.insert_new_goalTree("Main Goals", "main_goals")
         # yield self.insert_new_goalTree("Sub Goals", "sub_goals")
+
+
+
+class GoalCollection(VerticalGroup):
+    """widget for collecting all user goal info"""
+
+    def compose(self) -> ComposeResult:
+        yield VerticalScroll(
+                Input(placeholder="Goal Name", id="goal_input"),
+                Input(placeholder="Due Date", id="due_date")
+                ) 
 
 
 
@@ -31,6 +44,7 @@ class JourneyApp(App):
     def compose(self) -> ComposeResult:
         yield Header()
         yield GoalMenu()
+        yield GoalCollection()
         yield Footer()
 
 
