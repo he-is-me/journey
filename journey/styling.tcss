@@ -1,0 +1,8 @@
+GoalMenu {
+  background: green;
+  height: 100%;
+  width: 30%;
+  margin: 1 4;
+  padding: 1 1;
+}
+

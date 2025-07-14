@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "journey"
+version = "0.1.0"
+description = ""
+authors = ["ben_ten_11 <bentenomniverse11@pm.me>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+textual = "^4.0.0"
+rich = "^14.0.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
