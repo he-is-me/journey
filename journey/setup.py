@@ -1,8 +1,8 @@
-
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal, HorizontalGroup, HorizontalScroll, VerticalGroup, VerticalScroll
-from textual.widgets import Button, Digits, Footer, Header, Input , Label, Tree, Label
+from textual.widgets import Button, Digits, Footer, Header, Input , Label, RadioButton, Tree, Label
 from rich.text import Text
+
 
 #testing a push
 #this is a test
@@ -34,20 +34,25 @@ class GoalCollection(VerticalGroup):
     def compose(self) -> ComposeResult:
         yield VerticalScroll(
                 Input(placeholder="Goal Name", id="goal_input"),
-                Input(placeholder="Due Date", id="due_date")
+                Input(placeholder="Start Date", id="start_date"),
+                Input(placeholder="Due Date", id="due_date"),
+                Horizontal(RadioButton("Tier 1"),
+                           RadioButton("Tier 2"),
+                           RadioButton("Tier 3")),
+                Input("Difficulty", id="difficulty")
                 ) 
 
 
 
 class JourneyApp(App): 
     """A comprehensive neovim terminal application"""
-    
 
     CSS_PATH = "styling.tcss"
     def compose(self) -> ComposeResult:
         yield Header()
-        yield GoalMenu()
-        yield GoalCollection()
+        yield Horizontal(
+                GoalMenu(),
+                GoalCollection())
         yield Footer()
 
 

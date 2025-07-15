@@ -1,17 +1,30 @@
 GoalMenu {
-  background: green;
+  background: grey;
+  border: round white;
   height: 100%;
   width: 30%;
-  margin: 1 4;
-  padding: 1 1;
+  margin: 1 1;
 }
   
 
+
 #goal_input {
-  width: 30%;
+  width: 40%;
+  margin: 2 1;
 }
 
+#start_date{
+  width: 40%;
+  margin: 2 1;
+}
+
+#difficulty{
+  width: 40%;
+  margin: 2 1;
+}
+
+
 #due_date {
-width: 30%;
-margin: 1 0;
+width: 40%;
+margin: 2 1;
 }
