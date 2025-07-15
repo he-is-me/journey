@@ -3,7 +3,10 @@ GoalMenu {
   height: 100%;
   width: 30%;
 }
-  
+
+#main_goals{
+  border: round white;
+}
 
 /*######## Goal collection styles ########*/
 GoalCollection{
@@ -28,30 +31,31 @@ margin: 2 1;
 }
 #t1{
   width: 33%;
-  margin: 1 0;
+  margin: 1 3;
 }
 #t2{
-  width: 33%;
-  margin: 1 4;
+  width: 25%;
+  margin: 1 2;
 }
 #t3{
   width: 33%;
-  margin: 1 0;
+  margin: 1 3;
 }
 
 #finish_button_GC{
-  margin: 0 3;
+  margin: 0 1;
+  width: 33%;
 
 }
 #back_button_GC{
-  margin: 0 4;
+  margin: 0 1;
+  width: 33%;
 }
 #next_button_GC{
-  margin: 0 3;
+  margin: 0 1;
+  width: 33%;
 }
 /*######## end ########*/
-
-
 
 ToolTips{
   border: round red;
