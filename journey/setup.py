@@ -1,6 +1,8 @@
 from textual.app import App, ComposeResult
+from textual import on
 from textual.containers import Horizontal, HorizontalGroup, HorizontalScroll, VerticalGroup, VerticalScroll
-from textual.widgets import Button, Digits, Footer, Header, Input , Label, RadioButton, Tree, Label
+from textual.reactive import reactive
+from textual.widgets import Button, Digits, Footer, Header, Input , Label, RadioButton, TextArea, Tree, Label
 from rich.text import Text
 
 
@@ -31,16 +33,65 @@ class GoalMenu(VerticalGroup):
 class GoalCollection(VerticalGroup):
     """widget for collecting all user goal info"""
 
+
+    def on_radio_button_changed(self, event: RadioButton.Changed) -> None:
+        """when a tier button is selected the others are made unclickable"""
+        t1_button = self.query_one("#t1", RadioButton)
+        t2_button = self.query_one("#t2", RadioButton)
+        t3_button = self.query_one("#t3", RadioButton)
+        id = event.radio_button.id
+        value = event.radio_button.value
+
+        if id == "t1":
+            if value == False:
+                t2_button.disabled = False
+                t3_button.disabled = False
+            else:
+                t2_button.disabled = True
+                t3_button.disabled = True
+
+        elif id == "t2":
+            if value == False:
+                t1_button.disabled = False
+                t3_button.disabled = False
+            else:
+                t1_button.disabled = True
+                t3_button.disabled = True
+
+        elif id == "t3":
+            if value == False:
+                t1_button.disabled = False
+                t2_button.disabled = False
+            else:
+                t1_button.disabled = True
+                t2_button.disabled = True
+
+
+
     def compose(self) -> ComposeResult:
         yield VerticalScroll(
                 Input(placeholder="Goal Name", id="goal_input"),
-                Input(placeholder="Start Date", id="start_date"),
+                Input(placeholder="Start Date (optional)", id="start_date"),
                 Input(placeholder="Due Date", id="due_date"),
-                Horizontal(RadioButton("Tier 1"),
-                           RadioButton("Tier 2"),
-                           RadioButton("Tier 3")),
-                Input("Difficulty", id="difficulty")
-                ) 
+                Horizontal(RadioButton(label="Tier 1", id="t1", disabled=False),
+                           RadioButton(label="Tier 2", id="t2", disabled=False),
+                           RadioButton(label="Tier 3", id="t3", disabled=False)
+                           , id="tier_horizontal"),
+                Input(placeholder="Difficulty", id="difficulty"),
+                Horizontal(Button(label="Finish",  id="finish_button_GC"), #GC == GoalCollection widget
+                           Button(label="Back",  id="back_button_GC"),
+                           Button(label="Next", id="next_button_GC"),
+                           id="progress_horizontal")
+                )
+
+
+
+class ToolTips(VerticalGroup):
+    """widget for displaying tips for any object the user is focused on"""
+
+    def compose(self) -> ComposeResult:
+        yield TextArea("This is the tooltips section !",read_only=True, id="tooltips_text")
+
 
 
 
@@ -52,7 +103,8 @@ class JourneyApp(App):
         yield Header()
         yield Horizontal(
                 GoalMenu(),
-                GoalCollection())
+                GoalCollection(),
+                ToolTips())
         yield Footer()
 
 

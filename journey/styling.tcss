@@ -1,30 +1,67 @@
 GoalMenu {
-  background: grey;
   border: round white;
   height: 100%;
   width: 30%;
-  margin: 1 1;
 }
   
 
-
+/*######## Goal collection styles ########*/
+GoalCollection{
+  border: round white;
+  width: 35%;
+}
 #goal_input {
-  width: 40%;
   margin: 2 1;
 }
-
 #start_date{
-  width: 40%;
   margin: 2 1;
 }
-
-#difficulty{
-  width: 40%;
-  margin: 2 1;
-}
-
-
 #due_date {
-width: 40%;
 margin: 2 1;
 }
+#difficulty{
+  margin: 2 1;
+}
+#tier_horizontal{
+  width: 100%;
+  height: 10%;
+}
+#t1{
+  width: 33%;
+  margin: 1 0;
+}
+#t2{
+  width: 33%;
+  margin: 1 4;
+}
+#t3{
+  width: 33%;
+  margin: 1 0;
+}
+
+#finish_button_GC{
+  margin: 0 3;
+
+}
+#back_button_GC{
+  margin: 0 4;
+}
+#next_button_GC{
+  margin: 0 3;
+}
+/*######## end ########*/
+
+
+
+ToolTips{
+  border: round red;
+  width: 35%;
+  height: 40%;
+}
+
+
+
+
+
+
+
