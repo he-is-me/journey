@@ -13,15 +13,15 @@ GoalMenu {
   height: 10%;
 }
 #edit_goal{
-  margin: 1 7;
+  width: 50%;
 }
 
 #remove_goal{
-  margin: 1 7;
+  width: 50%;
 }
 
 #description_label{
-  margin: 0 21;
+  margin: 1 2;
 }
 
 #description{
@@ -65,7 +65,7 @@ margin: 2 1;
 }
 
 #finish_button_GC{
-  margin: 0 1;
+  margin: 0 2;
   width: 33%;
 
 }
