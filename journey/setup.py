@@ -27,8 +27,9 @@ class GoalMenu(VerticalGroup):
     def compose(self) -> ComposeResult:
         #TODO make sure that I know this really wants to take args or not !
         yield self.insert_new_goalTree("Main Goals", "main_goals")
-        yield Horizontal(Button("Edit", id="edit_goals_menu"),
-                         Button("+", id="add_goal"))
+        yield Horizontal(Button("Edit", id="edit_goal", disabled=True),
+                         Button("Remove", id="remove_goal", disabled=True),
+                         id="edit_remove_horizontal")
         # yield self.insert_new_goalTree("Sub Goals", "sub_goals")
 
 
@@ -81,6 +82,8 @@ class GoalCollection(VerticalGroup):
                            RadioButton(label="Tier 3", id="t3", disabled=False)
                            , id="tier_horizontal"),
                 Input(placeholder="Difficulty", id="difficulty"),
+                Label(Text("Description (Optional)",style="bold"), id="description_label"),
+                TextArea(id="description"),
                 Horizontal(Button(label="Finish",  id="finish_button_GC", disabled=True), #GC == GoalCollection widget
                            Button(label="Back",  id="back_button_GC", disabled=True),
                            Button(label="Next", id="next_button_GC"),
