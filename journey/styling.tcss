@@ -42,10 +42,10 @@ GoalCollection{
   margin: 1 1;
 }
 #due_date {
-margin: 1 1;
+margin: 0 1;
 }
 #difficulty{
-  margin: 0 1;
+  margin: 1 1;
 }
 #tier_horizontal{
   width: 100%;
@@ -53,15 +53,15 @@ margin: 1 1;
 }
 #t1{
   width: 33%;
-  margin: 0 1;
+  margin: 1 1;
 }
 #t2{
   width: 33%;
-  margin: 0 1;
+  margin: 1 1;
 }
 #t3{
   width: 32%;
-  margin: 0 1;
+  margin: 1 1;
 }
 
 #finish_button_GC{
