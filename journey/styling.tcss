@@ -36,16 +36,16 @@ GoalCollection{
   width: 35%;
 }
 #goal_input {
-  margin: 2 1;
+  margin: 1 1;
 }
 #start_date{
-  margin: 2 1;
+  margin: 1 1;
 }
 #due_date {
-margin: 2 1;
+margin: 1 1;
 }
 #difficulty{
-  margin: 2 1;
+  margin: 0 1;
 }
 #tier_horizontal{
   width: 100%;
@@ -53,19 +53,19 @@ margin: 2 1;
 }
 #t1{
   width: 33%;
-  margin: 1 1;
+  margin: 0 1;
 }
 #t2{
   width: 33%;
-  margin: 1 1;
+  margin: 0 1;
 }
 #t3{
   width: 32%;
-  margin: 1 1;
+  margin: 0 1;
 }
 
 #finish_button_GC{
-  margin: 0 2;
+  margin: 0 1;
   width: 33%;
 
 }
