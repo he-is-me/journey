@@ -9,12 +9,6 @@ GoalMenu {
   background: black;
 }
 
-#edit_remove_horizontal{
-  height: 10%;
-}
-#edit_goal{
-  width: 50%;
-}
 
 #remove_goal{
   width: 50%;
@@ -45,7 +39,8 @@ GoalCollection{
 margin: 1 1;
 }
 #difficulty{
-  margin: 0 1;
+  width: 25%;
+  margin: 1 2 1 0;
 }
 
 #tier_horizontal{
@@ -53,31 +48,18 @@ margin: 1 1;
   height: 10%;
 }
 #t1{
-  width: 33%;
-  margin: 0 1;
+  width: 23%;
+  margin: 1 0 1 2;
 }
 #t2{
-  width: 33%;
-  margin: 0 1;
+  width: 23%;
+  margin: 1 0 1 0;
 }
 #t3{
-  width: 32%;
-  margin: 0 1;
+  width: 23%;
+  margin: 1 0 1 0;
 }
 
-#finish_button_GC{
-  margin: 0 1;
-  width: 33%;
-
-}
-#back_button_GC{
-  margin: 0 1;
-  width: 33%;
-}
-#next_button_GC{
-  margin: 0 1;
-  width: 33%;
-}
 /*######## end ########*/
 
 ToolTips{
@@ -85,10 +67,4 @@ ToolTips{
   width: 35%;
   height: 40%;
 }
-
-
-
-
-
-
 
