@@ -49,7 +49,7 @@ margin: 0 1;
 }
 #tier_horizontal{
   width: 100%;
-  height: 12%;
+  height: 14%;
 }
 #t1{
   width: 33%;
