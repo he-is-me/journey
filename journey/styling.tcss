@@ -65,6 +65,6 @@ margin: 1 1;
 ToolTips{
   border: round red;
   width: 35%;
-  height: 40%;
+  height: 60%;
 }
 

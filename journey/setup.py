@@ -1,8 +1,11 @@
+from pathlib import Path
 from textual.app import App, ComposeResult
+from datetime import date
 from textual import on
 from textual.containers import Horizontal, HorizontalGroup, HorizontalScroll, VerticalGroup, VerticalScroll
 from textual.reactive import reactive
-from textual.widgets import Button, Digits, Footer, Header, Input , Label, RadioButton, TextArea, Tree, Label
+from textual.events import Focus
+from textual.widgets import Button, Digits, Footer, Header, Input , Label, MarkdownViewer, RadioButton, TextArea, Tree, Label
 from rich.text import Text
 
 
@@ -17,6 +20,10 @@ class GoalMenu(VerticalGroup):
         tree: Tree[str] = Tree(main_goal_table, id=tree_id)
         tree.root.expand()
         return tree
+
+    def on_tree_node_selected(self, event: Tree.NodeSelected):
+        event.node.label = "FUCCCK"
+
 
     
 
@@ -33,6 +40,19 @@ class GoalMenu(VerticalGroup):
 
 class GoalCollection(VerticalGroup):
     """widget for collecting all user goal info"""
+
+    goal_name = reactive("")
+    start_date = reactive("")
+    due_date = reactive("")
+    tier = reactive("")
+    difficulty= reactive("")
+    description= reactive("")
+
+                        
+    def on_focus(self, event: Focus) -> None:
+        inp = self.query_one("#goal_input", Input)
+        inp.placeholder = 'FUCK'
+
 
 
     def on_radio_button_changed(self, event: RadioButton.Changed) -> None:
@@ -88,8 +108,35 @@ class GoalCollection(VerticalGroup):
 class ToolTips(VerticalGroup):
     """widget for displaying tips for any object the user is focused on"""
 
+
+
+
+
+
+    def fetch_dialog(self, header: str):
+        """Reads the dialog.md file and gets the correct lines of text
+        and gives it to the text area and updates it"""
+        dialogs = {}
+        buff = []
+        in_block = False
+        with open(Path("dialog.md"), 'r') as file:
+            contents = file.read()
+            for line in contents.splitlines():
+                if line.startswith("## ") and header in line[3:]:
+                    in_block = True
+                    continue
+                if in_block: # --- means end of the block 
+                    if line.startswith("---"):
+                        break
+                    buff.append(line)
+        dialogs[header] = '\n'.join(buff).strip()
+        return dialogs[header]
+
+
+
     def compose(self) -> ComposeResult:
-        yield TextArea("This is the tooltips section !",read_only=True, id="tooltips_text")
+        yield MarkdownViewer(markdown=self.fetch_dialog("tooltips_main_goal_name"),
+                             id="tooltips_md", show_table_of_contents=False)
 
 
 
