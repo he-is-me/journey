@@ -27,7 +27,6 @@ GoalMenu {
 /*######## Goal collection styles ########*/
 GoalCollection{
   border: round white;
-  width: 35%;
 }
 #goal_input {
   margin: 1 1;
@@ -61,10 +60,4 @@ margin: 1 1;
 }
 
 /*######## end ########*/
-
-ToolTips{
-  border: round red;
-  width: 35%;
-  height: 60%;
-}
 
