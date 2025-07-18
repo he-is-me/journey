@@ -1,6 +1,8 @@
 from textual.app import App, ComposeResult
+from pathlib import Path
 from datetime import date
 from textual import on
+from textual.binding import Binding
 from textual.containers import Horizontal, HorizontalGroup, HorizontalScroll, Vertical, VerticalGroup, VerticalScroll
 from textual.reactive import reactive
 from textual.events import Focus
@@ -22,7 +24,7 @@ class GoalMenu(VerticalGroup):
         return tree
 
     def on_tree_node_selected(self, event: Tree.NodeSelected):
-        event.node.label = "FUCCCK"
+        ...
 
 
     
@@ -93,70 +95,69 @@ class MainGoalCollection(VerticalGroup):
         yield TextArea(id="mg_description")
         # yield Rule(line_style='heavy')
 
-#
-# class SubGoalsCollection(VerticalGroup):
-#     """collecting sub goals from user which are 2nd on the hierarchy of 
-#     goals in journey. These goals are the ones that must be complete before
-#     the maing goal is complete"""
-#
-#     def compose(self) -> ComposeResult:
-#             yield Input(placeholder="Goal Name", id="sg_goal_input")
-#             yield Input(placeholder="Start Date (optional)", id="sg_start_date")
-#             yield Input(placeholder="Due Date", id="sg_due_date")
-#             yield Horizontal(RadioButton(label="Tier 1", id="sg_t1", disabled=False),
-#                              RadioButton(label="Tier 2", id="sg_t2", disabled=False),
-#                              RadioButton(label="Tier 3", id="sg_t3", disabled=False),
-#                              Input(placeholder="Difficulty (1-3)", id="sg_difficulty", type="number"),
-#                              id="sg_tier_horizontal")
-#             yield Label(Text("Description (Optional)",style="bold"), id="sg_description_label")
-#             yield TextArea(id="sg_description")
-#
 
-#Deprecated until further notice
-# class ToolTips(VerticalGroup):
-#     """widget for displaying tips for any object the user is focused on"""
-#
-#
-#
-#
-#
-#
-#     def fetch_dialog(self, header: str):
-#         """Reads the dialog.md file and gets the correct lines of text
-#         and gives it to the text area and updates it"""
-#         dialogs = {}
-#         buff = []
-#         in_block = False
-#         with open(Path("dialog.md"), 'r') as file:
-#             contents = file.read()
-#             for line in contents.splitlines():
-#                 if line.startswith("## ") and header in line[3:]:
-#                     in_block = True
-#                     continue
-#                 if in_block: # --- means end of the block 
-#                     if line.startswith("---"):
-#                         break
-#                     buff.append(line)
-#         dialogs[header] = '\n'.join(buff).strip()
-#         return dialogs[header]
-#
-#
-#
-#     def compose(self) -> ComposeResult:
-#         yield MarkdownViewer(markdown=self.fetch_dialog("tooltips_main_goal_name"),
-#                              id="tooltips_md", show_table_of_contents=False)
-#
+class SubGoalsCollection(VerticalGroup):
+    """collecting sub goals from user which are 2nd on the hierarchy of 
+    goals in journey. These goals are the ones that must be complete before
+    the maing goal is complete"""
+
+    def compose(self) -> ComposeResult:
+            yield Input(placeholder="Goal Name", id="sg_goal_input")
+            yield Input(placeholder="Start Date (optional)", id="sg_start_date")
+            yield Input(placeholder="Due Date", id="sg_due_date")
+            yield Horizontal(RadioButton(label="Tier 1", id="sg_t1", disabled=False),
+                             RadioButton(label="Tier 2", id="sg_t2", disabled=False),
+                             RadioButton(label="Tier 3", id="sg_t3", disabled=False),
+                             Input(placeholder="Difficulty (1-3)", id="sg_difficulty", type="number"),
+                             id="sg_tier_horizontal")
+            yield Label(Text("Description (Optional)",style="bold"), id="sg_description_label")
+            yield TextArea(id="sg_description")
+
+
+class ToolTips(VerticalGroup):
+    """widget for displaying tips for any object the user is focused on"""
+
+
+    def fetch_dialog(self, header: str):
+        """Reads the dialog.md file and gets the correct lines of text
+        and gives it to the text area and updates it"""
+        dialogs = {}
+        buff = []
+        in_block = False
+        with open(Path("dialog.md"), 'r') as file:
+            contents = file.read()
+            for line in contents.splitlines():
+                if line.startswith("## ") and header in line[3:]:
+                    in_block = True
+                    continue
+                if in_block: # --- means end of the block 
+                    if line.startswith("---"):
+                        break
+                    buff.append(line)
+        dialogs[header] = '\n'.join(buff).strip()
+        return dialogs[header]
+
+
+
+    def compose(self) -> ComposeResult:
+        yield MarkdownViewer(markdown=self.fetch_dialog("tooltips_main_goal_name"),
+                             id="tooltips_md", show_table_of_contents=False)
+
 
 
 
 class JourneyApp(App): 
     """A comprehensive neovim terminal application"""
 
-    # BINDINGS = [("ctrl+n", "next_screen", "Go next " ),
-    #             ("ctrl+b", "previous_screen", "Go back")] #TODO make this a f string so it can say exactly what
+    BINDINGS = [("ctrl+n", "next_screen", "Go next " ),
+                ("ctrl+b", "previous_screen", "Go back"),
+                Binding("ctrl+a", "add_goal_type", "Add Goal", True)] 
 
     CSS_PATH = "styling.tcss"
 
+    page_num = 0
+    page_ids = ["MainGoalCollection", "SubGoalsCollection"]
+    pages = [MainGoalCollection, SubGoalsCollection]
 
 
     def compose(self) -> ComposeResult:
@@ -164,26 +165,38 @@ class JourneyApp(App):
         yield Horizontal(
                 GoalMenu(),
                 MainGoalCollection()
-                , id="main_screen")
+                , id="screen")
 
         yield Footer()
 
-    #
-    #
-    # def action_next_screen(self):
-    #     """moves user to the next phase of the goal inputing phase"""
-    #     self.page_num += 1
-    #     next_page = self.pages[self.page_num % len(self.pages)]
-    #     self.app.query(self.page_ids[(self.page_num % len(self.pages)) - 1]).remove() #remove current widget 
-    #     self.app.query_one("#main_screen").mount(next_page) # add next widget
-    #
-    #
-    # def action_previous_screen(self) -> None:
-    #     if self.page_num >= 1:
-    #         next_page = self.pages[self.page_num % len(self.pages) - 1]
-    #         self.app.query(self.page_ids[(self.page_num % len(self.pages))]).remove() #remove main_goal_vert
-    #         self.app.query_one("#main_screen").mount(next_page) # add sub_goal
-    #
+
+    def action_add_goal_type(self):
+        """adds goal to goal tree, will add depending on what page user is on 
+        e.g. if user is on subgoal screen it will add it under the SELECTED main goal"""
+        #NOTE this is temporary, validators need to be ran here or make validators run on BLURRED event
+        #NOTE this input needs to depend on the page that is mounted
+        goal_input_data = self.app.query_one("#mg_goal_input", Input).value
+        main_goal_tree  = self.app.query_one("#main_goals", Tree).root
+        main_goal_tree.add(goal_input_data)
+
+
+
+
+    def action_next_screen(self):
+        """moves user to the next phase of the goal inputing phase"""
+        self.page_num += 1
+        next_page = self.pages[self.page_num % len(self.pages)]
+        self.app.query(self.page_ids[(self.page_num % len(self.pages)) - 1]).remove() #remove current widget 
+        self.app.query_one("#screen").mount(next_page()) # add next widget
+
+
+    def action_previous_screen(self) -> None:
+        if self.page_num >= 1:
+            next_page = self.pages[(self.page_num % len(self.pages)) - 1]
+            self.app.query(self.page_ids[(self.page_num % len(self.pages))]).remove() #remove main_goal_vert
+            self.page_num -= 1
+            self.app.query_one("#screen").mount(next_page()) # add sub_goal
+
 
 
 if __name__ == "__main__":
