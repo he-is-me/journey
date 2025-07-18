@@ -1,10 +1,10 @@
-from pathlib import Path
 from textual.app import App, ComposeResult
 from datetime import date
 from textual import on
 from textual.containers import Horizontal, HorizontalGroup, HorizontalScroll, Vertical, VerticalGroup, VerticalScroll
 from textual.reactive import reactive
 from textual.events import Focus
+from textual.widget import Widget
 from textual.widgets import Button, Digits, Footer, Header, Input , Label, MarkdownViewer, RadioButton, TextArea, Tree, Label
 from rich.text import Text
 
@@ -41,25 +41,15 @@ class GoalMenu(VerticalGroup):
 class MainGoalCollection(VerticalGroup):
     """widget for collecting all user goal info"""
 
-    goal_name = reactive("")
-    start_date = reactive("")
-    due_date = reactive("")
-    tier = reactive("")
-    difficulty= reactive("")
-    description= reactive("")
-
-                        
-
-
     def on_radio_button_changed(self, event: RadioButton.Changed) -> None:
         """when a tier button is selected the others are made unclickable"""
-        t1_button = self.query_one("#t1", RadioButton)
-        t2_button = self.query_one("#t2", RadioButton)
-        t3_button = self.query_one("#t3", RadioButton)
+        t1_button = self.query_one("#mg_t1", RadioButton)
+        t2_button = self.query_one("#mg_t2", RadioButton)
+        t3_button = self.query_one("#mg_t3", RadioButton)
         id = event.radio_button.id
         value = event.radio_button.value
 
-        if id == "t1":
+        if id == "mg_t1":
             if value == False:
                 t2_button.disabled = False
                 t3_button.disabled = False
@@ -67,7 +57,7 @@ class MainGoalCollection(VerticalGroup):
                 t2_button.disabled = True
                 t3_button.disabled = True
 
-        elif id == "t2":
+        elif id == "mg_t2":
             if value == False:
                 t1_button.disabled = False
                 t3_button.disabled = False
@@ -75,7 +65,7 @@ class MainGoalCollection(VerticalGroup):
                 t1_button.disabled = True
                 t3_button.disabled = True
 
-        elif id == "t3":
+        elif id == "mg_t3":
             if value == False:
                 t1_button.disabled = False
                 t2_button.disabled = False
@@ -86,39 +76,41 @@ class MainGoalCollection(VerticalGroup):
 
 
     def compose(self) -> ComposeResult:
-        #NOTE change the id's to be prefixed with "maingoal" for easier understanding of .tcss file
-        yield Vertical(
-                Input(placeholder="Goal Name", id="goal_input"),
-                Input(placeholder="Start Date (optional)", id="start_date"),
-                Input(placeholder="Due Date", id="due_date"),
-                Horizontal(RadioButton(label="Tier 1", id="t1", disabled=False),
-                           RadioButton(label="Tier 2", id="t2", disabled=False),
-                           RadioButton(label="Tier 3", id="t3", disabled=False),
-                           Input(placeholder="Difficulty (1-3)", id="difficulty", type="number"),
-                           id="tier_horizontal"),
-                Label(Text("Description (Optional)",style="bold"), id="description_label"),
-                TextArea(id="description"),
-                Horizontal(id="progress_horizontal"), id="main_goal_vertical")
+        """ids prefixed with mg stands for Main Goal"""
+        yield Input(placeholder="Goal Name", id="mg_goal_input")
 
+        yield Horizontal(Vertical(Input(placeholder="Start Date (optional)", id="mg_start_date"),
+                                  Input(placeholder="Due Date (Day/Month/Year or Month/Year )", id="mg_due_date"),
+                                  Input(placeholder="Difficulty (1-3) | 1 = Easy, 3 = Hard", id="mg_difficulty", type="number"),
+                                  id="mg_dates_dif_vertical"),
 
-class SubGoalsCollection(VerticalGroup):
-    """collecting sub goals from user which are 2nd on the hierarchy of 
-    goals in journey. These goals are the ones that must be complete before
-    the maing goal is complete"""
+                         Vertical(RadioButton(label="Tier 1 (Mission critical Goal)", id="mg_t1", disabled=False),
+                                  RadioButton(label="Tier 2 (High-Impact Goal)", id="mg_t2", disabled=False),
+                                  RadioButton(label="Tier 3 (Growth & Improvement)", id="mg_t3", disabled=False),
+                                  id="mg_tier_vertical")
+                         )
 
-    def compose(self) -> ComposeResult:
-        yield Vertical(
-                Input(placeholder="Goal Name", id="subgoal_input"),
-                Input(placeholder="Due Date", id="subgoal_due_date"),
-                Horizontal(RadioButton(label="Tier 1", id="t1", disabled=False),
-                           RadioButton(label="Tier 2", id="t2", disabled=False),
-                           RadioButton(label="Tier 3", id="t3", disabled=False),
-                           Input(placeholder="Difficulty (1-3)", id="difficulty", type="number"),
-                           id="tier_horizontal"),
-                Label(Text("Description (Optional)",style="bold"), id="description_label"),
-                TextArea(id="description"),
-                Horizontal(id="progress_horizontal"))
+        yield Label(Text("Description (Optional)",style="bold"), id="mg_description_label")
+        yield TextArea(id="mg_description")
 
+#
+# class SubGoalsCollection(VerticalGroup):
+#     """collecting sub goals from user which are 2nd on the hierarchy of 
+#     goals in journey. These goals are the ones that must be complete before
+#     the maing goal is complete"""
+#
+#     def compose(self) -> ComposeResult:
+#             yield Input(placeholder="Goal Name", id="sg_goal_input")
+#             yield Input(placeholder="Start Date (optional)", id="sg_start_date")
+#             yield Input(placeholder="Due Date", id="sg_due_date")
+#             yield Horizontal(RadioButton(label="Tier 1", id="sg_t1", disabled=False),
+#                              RadioButton(label="Tier 2", id="sg_t2", disabled=False),
+#                              RadioButton(label="Tier 3", id="sg_t3", disabled=False),
+#                              Input(placeholder="Difficulty (1-3)", id="sg_difficulty", type="number"),
+#                              id="sg_tier_horizontal")
+#             yield Label(Text("Description (Optional)",style="bold"), id="sg_description_label")
+#             yield TextArea(id="sg_description")
+#
 
 #Deprecated until further notice
 # class ToolTips(VerticalGroup):
@@ -160,20 +152,11 @@ class SubGoalsCollection(VerticalGroup):
 class JourneyApp(App): 
     """A comprehensive neovim terminal application"""
 
-    BINDINGS = [("n", "next_screen", "Go to next page" )] #TODO make this a f string so it can say exactly what
+    BINDINGS = [("ctrl+n", "next_screen", "Go next " ),
+                ("ctrl+b", "previous_screen", "Go back")] #TODO make this a f string so it can say exactly what
                                                           #the next page is for example it would say: "Go to subgoals"
     CSS_PATH = "styling.tcss"
 
-    page_num = 0
-    pages = [MainGoalCollection, SubGoalsCollection]
-    
-    def action_next_screen(self):
-        """moves user to the next phase of the goal inputing phase"""
-        #TODO this shit does NOT work, fix it
-        self.page_num += 1
-        next_page = self.pages[self.page_num]
-        self.app.query_one("#main_goal_vertical").remove() #remove main_goal_vert
-        self.app.query_one("#main_goal_vertical").mount(next_page) # add sub_goal
 
 
     def compose(self) -> ComposeResult:
@@ -181,10 +164,52 @@ class JourneyApp(App):
         yield Horizontal(
                 GoalMenu(),
                 MainGoalCollection()
-                )
+                , id="main_screen")
         yield Footer()
+
+    #
+    #
+    # def action_next_screen(self):
+    #     """moves user to the next phase of the goal inputing phase"""
+    #     self.page_num += 1
+    #     next_page = self.pages[self.page_num % len(self.pages)]
+    #     self.app.query(self.page_ids[(self.page_num % len(self.pages)) - 1]).remove() #remove current widget 
+    #     self.app.query_one("#main_screen").mount(next_page) # add next widget
+    #
+    #
+    # def action_previous_screen(self) -> None:
+    #     if self.page_num >= 1:
+    #         next_page = self.pages[self.page_num % len(self.pages) - 1]
+    #         self.app.query(self.page_ids[(self.page_num % len(self.pages))]).remove() #remove main_goal_vert
+    #         self.app.query_one("#main_screen").mount(next_page) # add sub_goal
+    #
 
 
 if __name__ == "__main__":
     app = JourneyApp()
     app.run()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
