@@ -1,61 +1,76 @@
 GoalMenu {
-  border: round white;
+  
   height: 100%;
   width: 30%;
 }
 
 #main_goals{
-  border: round white;
+  
   background: black;
 }
 
-#mg_tier_vertical{
-  height: 45%;
-  width: 50%;
+#mg_main_horizontal{
+  
+  height: auto;
+  margin: 3;
 }
-#mg_dates_dif_vertical{
-  height: 45%;
-  width: 50%;
-}
-#mg_start_date{
-  margin: 1 4;
-}
-#mg_due_date{
-  margin: 1 4;
-}
-#mg_difficulty{
+
+#mg_goal_input {
   margin: 1 4;
 }
 
+#mg_tier_vertical{
+  
+  height: auto; 
+}
+#mg_dates_dif_vertical{
+  
+  height: auto;
+}
+#mg_start_date{
+  width: 1fr;
+  margin: 1;
+}
+#mg_due_date{
+  width: 1fr;
+  margin: 1;
+}
+#mg_difficulty{
+  width: 1fr;
+  margin: 1;
+}
 #mg_t1{
-  width: 100%;
+  width: 1fr;
   margin: 1;
 }
 #mg_t2{
-  width: 100%;
+  width: 1fr;
   margin: 1;
 }
 #mg_t3{
-  width: 100%;
+  width: 1fr;
   margin: 1;
 }
 
 
 /*######## MainGoalCollection styles ########*/
-GoalCollection{
-  border: round white;
+MainGoalCollection{
+  
+  height: 100%;
 }
-#mg_goal_input {
-  margin: 1 1;
-}
+
 #mg_description_label{
-  margin: 2;
+  margin: 0 5;
   height: 5%;
 }
 
 #mg_description{
-  height: 10%;
+  height: 40%;
+  margin: 0 4;
+  
 }
+
+
 /*######## end ########*/
 
 

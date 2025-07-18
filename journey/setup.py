@@ -5,7 +5,7 @@ from textual.containers import Horizontal, HorizontalGroup, HorizontalScroll, Ve
 from textual.reactive import reactive
 from textual.events import Focus
 from textual.widget import Widget
-from textual.widgets import Button, Digits, Footer, Header, Input , Label, MarkdownViewer, RadioButton, TextArea, Tree, Label
+from textual.widgets import Button, Digits, Footer, Header, Input , Label, MarkdownViewer, RadioButton, Rule, TextArea, Tree, Label
 from rich.text import Text
 
 
@@ -78,7 +78,6 @@ class MainGoalCollection(VerticalGroup):
     def compose(self) -> ComposeResult:
         """ids prefixed with mg stands for Main Goal"""
         yield Input(placeholder="Goal Name", id="mg_goal_input")
-
         yield Horizontal(Vertical(Input(placeholder="Start Date (optional)", id="mg_start_date"),
                                   Input(placeholder="Due Date (Day/Month/Year or Month/Year )", id="mg_due_date"),
                                   Input(placeholder="Difficulty (1-3) | 1 = Easy, 3 = Hard", id="mg_difficulty", type="number"),
@@ -87,11 +86,12 @@ class MainGoalCollection(VerticalGroup):
                          Vertical(RadioButton(label="Tier 1 (Mission critical Goal)", id="mg_t1", disabled=False),
                                   RadioButton(label="Tier 2 (High-Impact Goal)", id="mg_t2", disabled=False),
                                   RadioButton(label="Tier 3 (Growth & Improvement)", id="mg_t3", disabled=False),
-                                  id="mg_tier_vertical")
-                         )
-
-        yield Label(Text("Description (Optional)",style="bold"), id="mg_description_label")
+                                  id="mg_tier_vertical"),
+                         id="mg_main_horizontal")
+        yield Label(Text("""Beyond just completing this goal, what would achieving it truly mean for you or your life? How would things be different,
+                         and what impact would it have on your well-being, growth, or overall aspirations?""",style="bold"), id="mg_description_label")
         yield TextArea(id="mg_description")
+        # yield Rule(line_style='heavy')
 
 #
 # class SubGoalsCollection(VerticalGroup):
@@ -152,9 +152,9 @@ class MainGoalCollection(VerticalGroup):
 class JourneyApp(App): 
     """A comprehensive neovim terminal application"""
 
-    BINDINGS = [("ctrl+n", "next_screen", "Go next " ),
-                ("ctrl+b", "previous_screen", "Go back")] #TODO make this a f string so it can say exactly what
-                                                          #the next page is for example it would say: "Go to subgoals"
+    # BINDINGS = [("ctrl+n", "next_screen", "Go next " ),
+    #             ("ctrl+b", "previous_screen", "Go back")] #TODO make this a f string so it can say exactly what
+
     CSS_PATH = "styling.tcss"
 
 
@@ -165,6 +165,7 @@ class JourneyApp(App):
                 GoalMenu(),
                 MainGoalCollection()
                 , id="main_screen")
+
         yield Footer()
 
     #
