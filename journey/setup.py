@@ -1,3 +1,4 @@
+from ast import Tuple, TypeAlias
 from fileinput import filename
 from tokenize import Number
 from textual.app import App, ComposeResult
@@ -6,14 +7,14 @@ from datetime import date, datetime
 from textual import on
 from textual.binding import Binding
 from textual.containers import Horizontal, HorizontalGroup, HorizontalScroll, Vertical, VerticalGroup, VerticalScroll
+from textual.css.types import TextAlign
 from textual.reactive import reactive
 from textual.events import Focus
-from textual.validation import Integer, ValidationResult, Validator
+from textual.validation import Integer, Length, ValidationResult, Validator
 from textual.widget import Widget
-from textual.widgets import Button, Digits, Footer, Header, Input , Label, MarkdownViewer, RadioButton, Rule, TextArea, Tree, Label
+from textual.widgets import Button, Digits, Footer, Header, Input , Label, MarkdownViewer, Pretty, RadioButton, Rule, Static, TextArea, Tree, Label
 from textual import log 
 from rich.text import Text
-
 
 #testing a push
 #this is a test
@@ -89,28 +90,52 @@ class MainGoalCollection(VerticalGroup):
 
     def compose(self) -> ComposeResult:
         """ids prefixed with mg stands for Main Goal"""
+        #TODO add tooltips to all of the inputs and description
         yield Input(placeholder="Goal Name", id="mg_goal_input", valid_empty=False,
-                    validate_on=['blur'])
+                    validate_on=['blur','changed'],
+                    validators=[Length(minimum=1, maximum=500, failure_description="Goal too short !")])
+
         yield Horizontal(Vertical(Input(placeholder="Start Date (optional)", id="mg_start_date",
+                                        validate_on=['changed'],
                                         validators=[DateValidator()],valid_empty=True),
 
                                   Input(placeholder="Due Date (Day/Month/Year or Month/Year )", id="mg_due_date",
+                                        validate_on=['changed'],
                                         validators=[DateValidator(),
                                                     DateRangeValidator()]),
 
                                   Input(placeholder="Difficulty (1-3) | 1 = Easy, 3 = Hard", id="mg_difficulty", 
                                         type="number", validators=[Integer(minimum=1, maximum=3)], validate_on=["blur","submitted"]),
-                                  id="mg_dates_dif_vertical",),
+                         id="mg_dates_dif_vertical",),
 
                          Vertical(RadioButton(label="Tier 1 (Mission critical Goal)", id="mg_t1", disabled=False),
                                   RadioButton(label="Tier 2 (High-Impact Goal)", id="mg_t2", disabled=False),
                                   RadioButton(label="Tier 3 (Growth & Improvement)", id="mg_t3", disabled=False),
-                                  id="mg_tier_vertical"),
-                         id="mg_main_horizontal")
+                         id="mg_tier_vertical"),
+
+              id="mg_main_horizontal")
+
         yield Label(Text("""Beyond just completing this goal, what would achieving it truly mean for you or your life? How would things be different,
                          and what impact would it have on your well-being, growth, or overall aspirations?""",style="bold"), id="mg_description_label")
         yield TextArea(id="mg_description")
+        yield Static(content="",id="mg_notification")
         # yield Rule(line_style='heavy')
+
+
+    @on(Input.Changed)
+    def validator_fail_notification(self, event: Input.Changed):
+        """when input valifator failed tell user why at bottom of screen"""
+        #TODO remove later
+        if event.validation_result != None:
+            notification = self.query_one("#mg_notification", Static)
+            if not event.validation_result.is_valid: 
+                notification.update("\n".join(event.validation_result.failure_descriptions))
+            else:
+                notification.update("")
+        else:
+            return
+
+    
 
 
 
@@ -123,13 +148,18 @@ class DateValidator(Validator):
 
 
     @staticmethod
-    def check_date(value: str) -> bool:
-        format_opt1 = "%m/%d/%y"
+    def check_date(value: str, get_date: bool=False) -> bool|datetime:
+        format_opt = "%m/%d/%y"
         try:
-            datetime.strptime(value,format_opt1)
+            converted_date = datetime.strptime(value,format_opt)
+            if get_date:
+                return converted_date
             return True
-        except Exception:
+        except Exception as e:
+            #TODO log this
             return False
+
+
 
 class DateRangeValidator(Validator):
     def validate(self, value: str) -> ValidationResult:
@@ -141,16 +171,18 @@ class DateRangeValidator(Validator):
 
     @staticmethod
     def check_range(value) -> bool:
-        date_format= "%m/%d/%y"
+        """checks that start date is less than or equal to due date"""
         start_date = app.query_one("#mg_start_date", Input).value
-        if DateValidator.check_date(start_date) and DateValidator.check_date(value):
-            try:
-                start = datetime.strptime(date_format,start_date) 
-                end = datetime.strptime(date_format,value)
-                return True
-            except Exception:
-                return False
-        return False
+        try:
+            start = DateValidator.check_date(start_date, get_date=True)
+            end = DateValidator.check_date(value, get_date=True)
+        except Exception as e:
+            return False
+        else:
+            if isinstance(start,datetime) and isinstance(end,datetime):
+                return start <= end
+            return False
+
 
 
 
@@ -243,10 +275,21 @@ class JourneyApp(App):
     def action_add_goal_type(self):
         """this is only for adding main goals, sub goals and task
         are added throguh selected events handling"""
-        start_date = self.app.query_one("#mg_start_date", Input).value
-        due_date = self.app.query_one("#mg_due_date", Input).value
-        difficulty = self.app.query_one("#mg_difficulty", Input).value
-        description = self.app.query_one("#mg_description", TextArea).text
+        if self.page_num == 0:
+            self.add_main_goal_action()
+
+
+
+
+    def add_main_goal_action(self):
+        """controls adding main goal to goal tree"""
+
+        main_goal_tree = self.app.query_one("#goals_tree", Tree)
+        goal_input_data = self.app.query_one("#mg_goal_input", Input)
+        start_date = self.app.query_one("#mg_start_date", Input)
+        due_date = self.app.query_one("#mg_due_date", Input)
+        difficulty = self.app.query_one("#mg_difficulty", Input)
+        description = self.app.query_one("#mg_description", TextArea)
         tiers = [self.app.query_one("#mg_t1", RadioButton),
                 self.app.query_one("#mg_t2", RadioButton),
                 self.app.query_one("#mg_t3", RadioButton)]
@@ -262,29 +305,19 @@ class JourneyApp(App):
                 else:
                     selected_tier = 3
                 
-        if self.page_num == 0: #on main goal page
-            goal_input_data = self.app.query_one("#mg_goal_input", Input).value
-            main_goal_tree = self.app.query_one("#goals_tree", Tree).root
-            node = main_goal_tree.add(goal_input_data, data={"start_date": start_date,
-                                                      "due_date": due_date,
-                                                      "difficulty": difficulty,
-                                                      "tier": selected_tier,
-                                                      "description": description})
-            #NOTE could use node var to store in file just in case user exits or wants to finish later
-            #the whole node tree and ALL data will be saved and can be easily put back in the tree
-
-
-            
+        node = main_goal_tree.root.add(goal_input_data.value, 
+                                       data={"start_date": start_date.value,
+                                             "due_date": due_date.value,
+                                             "difficulty": difficulty.value,
+                                             "tier": selected_tier,
+                                             "description": description.text})
+        #NOTE could use node var to store in file just in case user exits or wants to finish later
+        #the whole node tree and ALL data will be saved and can be easily put back in the tree
 
 
 
 
-
-
-
-
-
-    async def action_next_screen(self):
+    def action_next_screen(self):
         """moves user to the next phase of the goal inputing phase"""
         self.page_num += 1
         next_page = self.pages[self.page_num % len(self.pages)]

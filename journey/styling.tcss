@@ -65,11 +65,14 @@ MainGoalCollection{
 }
 
 #mg_description{
-  height: 40%;
+  height: 12%;
   margin: 0 4;
   
 }
 
+#mg_notification{
+  margin: 0 5;
+}
 
 /*######## end ########*/
 
