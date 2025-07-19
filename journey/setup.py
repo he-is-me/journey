@@ -89,12 +89,14 @@ class MainGoalCollection(VerticalGroup):
 
     def compose(self) -> ComposeResult:
         """ids prefixed with mg stands for Main Goal"""
-        yield Input(placeholder="Goal Name", id="mg_goal_input")
+        yield Input(placeholder="Goal Name", id="mg_goal_input", valid_empty=False,
+                    validate_on=['blur'])
         yield Horizontal(Vertical(Input(placeholder="Start Date (optional)", id="mg_start_date",
                                         validators=[DateValidator()],valid_empty=True),
 
                                   Input(placeholder="Due Date (Day/Month/Year or Month/Year )", id="mg_due_date",
-                                        validators=[DateValidator()]),
+                                        validators=[DateValidator(),
+                                                    DateRangeValidator()]),
 
                                   Input(placeholder="Difficulty (1-3) | 1 = Easy, 3 = Hard", id="mg_difficulty", 
                                         type="number", validators=[Integer(minimum=1, maximum=3)], validate_on=["blur","submitted"]),
@@ -109,6 +111,8 @@ class MainGoalCollection(VerticalGroup):
                          and what impact would it have on your well-being, growth, or overall aspirations?""",style="bold"), id="mg_description_label")
         yield TextArea(id="mg_description")
         # yield Rule(line_style='heavy')
+
+
 
 
 class DateValidator(Validator):
@@ -126,6 +130,34 @@ class DateValidator(Validator):
             return True
         except Exception:
             return False
+
+class DateRangeValidator(Validator):
+    def validate(self, value: str) -> ValidationResult:
+        if self.check_range(value):
+            return self.success()
+        return self.failure("Invalid date range, start date > due date !")
+
+
+
+    @staticmethod
+    def check_range(value) -> bool:
+        date_format= "%m/%d/%y"
+        start_date = app.query_one("#mg_start_date", Input).value
+        if DateValidator.check_date(start_date) and DateValidator.check_date(value):
+            try:
+                start = datetime.strptime(date_format,start_date) 
+                end = datetime.strptime(date_format,value)
+                return True
+            except Exception:
+                return False
+        return False
+
+
+
+
+
+
+    
 
 
 
@@ -215,7 +247,6 @@ class JourneyApp(App):
         due_date = self.app.query_one("#mg_due_date", Input).value
         difficulty = self.app.query_one("#mg_difficulty", Input).value
         description = self.app.query_one("#mg_description", TextArea).text
-        description_TEST = self.app.query_one("#mg_description", TextArea)
         tiers = [self.app.query_one("#mg_t1", RadioButton),
                 self.app.query_one("#mg_t2", RadioButton),
                 self.app.query_one("#mg_t3", RadioButton)]
