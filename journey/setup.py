@@ -1,12 +1,14 @@
 from fileinput import filename
+from tokenize import Number
 from textual.app import App, ComposeResult
 from pathlib import Path
-from datetime import date
+from datetime import date, datetime
 from textual import on
 from textual.binding import Binding
 from textual.containers import Horizontal, HorizontalGroup, HorizontalScroll, Vertical, VerticalGroup, VerticalScroll
 from textual.reactive import reactive
 from textual.events import Focus
+from textual.validation import Integer, ValidationResult, Validator
 from textual.widget import Widget
 from textual.widgets import Button, Digits, Footer, Header, Input , Label, MarkdownViewer, RadioButton, Rule, TextArea, Tree, Label
 from textual import log 
@@ -88,10 +90,15 @@ class MainGoalCollection(VerticalGroup):
     def compose(self) -> ComposeResult:
         """ids prefixed with mg stands for Main Goal"""
         yield Input(placeholder="Goal Name", id="mg_goal_input")
-        yield Horizontal(Vertical(Input(placeholder="Start Date (optional)", id="mg_start_date", valid_empty=True),
-                                  Input(placeholder="Due Date (Day/Month/Year or Month/Year )", id="mg_due_date"),
-                                  Input(placeholder="Difficulty (1-3) | 1 = Easy, 3 = Hard", id="mg_difficulty", type="number"),
-                                  id="mg_dates_dif_vertical"),
+        yield Horizontal(Vertical(Input(placeholder="Start Date (optional)", id="mg_start_date",
+                                        validators=[DateValidator()],valid_empty=True),
+
+                                  Input(placeholder="Due Date (Day/Month/Year or Month/Year )", id="mg_due_date",
+                                        validators=[DateValidator()]),
+
+                                  Input(placeholder="Difficulty (1-3) | 1 = Easy, 3 = Hard", id="mg_difficulty", 
+                                        type="number", validators=[Integer(minimum=1, maximum=3)], validate_on=["blur","submitted"]),
+                                  id="mg_dates_dif_vertical",),
 
                          Vertical(RadioButton(label="Tier 1 (Mission critical Goal)", id="mg_t1", disabled=False),
                                   RadioButton(label="Tier 2 (High-Impact Goal)", id="mg_t2", disabled=False),
@@ -102,6 +109,23 @@ class MainGoalCollection(VerticalGroup):
                          and what impact would it have on your well-being, growth, or overall aspirations?""",style="bold"), id="mg_description_label")
         yield TextArea(id="mg_description")
         # yield Rule(line_style='heavy')
+
+
+class DateValidator(Validator):
+    def validate(self, value: str) -> ValidationResult:
+        if self.check_date(value):
+            return self.success()
+        return self.failure("Invalid Date")
+
+
+    @staticmethod
+    def check_date(value: str) -> bool:
+        format_opt1 = "%m/%d/%y"
+        try:
+            datetime.strptime(value,format_opt1)
+            return True
+        except Exception:
+            return False
 
 
 
