@@ -70,10 +70,10 @@ MainGoalCollection{
   
 }
 
-#mg_notification{
+#notification_static{
   margin: 0 5;
+  width: auto;
 }
-
 /*######## end ########*/
 
 

@@ -1,4 +1,7 @@
-from ast import Tuple, TypeAlias
+from enum import Enum
+import math
+from platform import libc_ver
+from typing import List, Tuple
 from fileinput import filename
 from tokenize import Number
 from textual.app import App, ComposeResult
@@ -6,7 +9,7 @@ from pathlib import Path
 from datetime import date, datetime
 from textual import on
 from textual.binding import Binding
-from textual.containers import Horizontal, HorizontalGroup, HorizontalScroll, Vertical, VerticalGroup, VerticalScroll
+from textual.containers import Center, Horizontal, HorizontalGroup, HorizontalScroll, Vertical, VerticalGroup, VerticalScroll
 from textual.css.types import TextAlign
 from textual.reactive import reactive
 from textual.events import Focus
@@ -16,8 +19,12 @@ from textual.widgets import Button, Digits, Footer, Header, Input , Label, Markd
 from textual import log 
 from rich.text import Text
 
-#testing a push
-#this is a test
+
+
+
+
+
+
 
 class GoalMenu(VerticalGroup):
     """The main goals area tree"""
@@ -46,6 +53,75 @@ class GoalMenu(VerticalGroup):
         yield self.insert_root_node("Goals", "goals_tree")
 
         # yield self.insert_new_goalTree("Sub Goals", "sub_goals")
+
+
+class NotificationLevel(Enum):
+    INFO = "bold blue"
+    WARNING = "bold yellow"
+    ERROR = "bold red underline"
+
+class Notification(Widget):
+    def __init__(self, label_id: str="notification_label", static_id: str="notification_static", content_text: str=""):
+        super().__init__()
+        self.noti_label: Label = Label(id=label_id)
+        self.noti_static: Static = Static(content=content_text,id=static_id) 
+        self._notification_que: List[str|Text] = []
+        self.current_message: str
+
+
+
+
+    def add_to_que(self, message: str|Text, level: NotificationLevel):
+        """inserts data into the notification que depending on the NotificationLevel given,
+        INFO: goes last
+        WARNING: goes in the middle
+        ERROR: goes first"""
+        match level:
+            case NotificationLevel.INFO:
+                self._notification_que.append(message)
+            case NotificationLevel.WARNING:
+                que_len = len(self._notification_que)
+                if que_len != 0:
+                    idx = math.ceil(que_len/2)
+                    self._notification_que.insert(idx, message)
+                else:
+                    self._notification_que.append(message)
+            case NotificationLevel.ERROR:
+                self._notification_que.insert(0,message)
+        return 
+
+
+    
+    def display_and_flush(self) -> bool:
+        if len(self._notification_que) == 0:
+            return False
+        else:
+
+            ...
+
+    
+
+
+
+
+    def on_mount(self):
+
+        ...
+
+
+
+    def send_message(self, message: str|Text|list, label: str|Text):
+        
+        if isinstance(message, list):
+            return
+        self.noti_label.update(label)
+        self.noti_static.update(message)
+
+    def compose(self) -> ComposeResult:
+        yield Center(
+                self.noti_label,
+                self.noti_static
+                )
 
 
 
@@ -118,8 +194,18 @@ class MainGoalCollection(VerticalGroup):
         yield Label(Text("""Beyond just completing this goal, what would achieving it truly mean for you or your life? How would things be different,
                          and what impact would it have on your well-being, growth, or overall aspirations?""",style="bold"), id="mg_description_label")
         yield TextArea(id="mg_description")
-        yield Static(content="",id="mg_notification")
+
+        yield Notification()
         # yield Rule(line_style='heavy')
+
+
+
+
+    @staticmethod
+    def send_noti(message: str|Text):
+
+
+        ...
 
 
     @on(Input.Changed)
@@ -127,11 +213,11 @@ class MainGoalCollection(VerticalGroup):
         """when input valifator failed tell user why at bottom of screen"""
         #TODO remove later
         if event.validation_result != None:
-            notification = self.query_one("#mg_notification", Static)
+            notification = self.query_one(Notification)
             if not event.validation_result.is_valid: 
-                notification.update("\n".join(event.validation_result.failure_descriptions))
+                notification.send_message(Text("\n".join(event.validation_result.failure_descriptions), style=" bold red"), label="TEST")
             else:
-                notification.update("")
+                notification.send_message("", label="")
         else:
             return
 
@@ -281,20 +367,44 @@ class JourneyApp(App):
 
 
 
-    def add_main_goal_action(self):
-        """controls adding main goal to goal tree"""
 
+
+
+    def final_input_validation(self, input_widgets: Tuple[Input,...]) -> bool:
+        notification_box = self.query_one(Notification)
+        for widget in input_widgets:
+            if not widget.is_valid:
+                widget.focus
+                notification_box.send_message("Invalid input !", "")
+                return False
+                
+        return True
+
+
+        
+
+
+
+    def add_main_goal_action(self) -> bool:
+        """controls adding main goal to goal tree"""
+        noti = self.query_one("#notification_label", Label)
         main_goal_tree = self.app.query_one("#goals_tree", Tree)
         goal_input_data = self.app.query_one("#mg_goal_input", Input)
-        start_date = self.app.query_one("#mg_start_date", Input)
-        due_date = self.app.query_one("#mg_due_date", Input)
-        difficulty = self.app.query_one("#mg_difficulty", Input)
+        start_date_input = self.app.query_one("#mg_start_date", Input)
+        due_date_input = self.app.query_one("#mg_due_date", Input)
+        difficulty_input = self.app.query_one("#mg_difficulty", Input)
         description = self.app.query_one("#mg_description", TextArea)
         tiers = [self.app.query_one("#mg_t1", RadioButton),
                 self.app.query_one("#mg_t2", RadioButton),
                 self.app.query_one("#mg_t3", RadioButton)]
 
-        selected_tier = ""
+        unvalidated_input: Tuple[Input,...] = (goal_input_data, start_date_input, due_date_input,difficulty_input) 
+        if not self.final_input_validation(unvalidated_input):
+            return False
+
+        #This validates the tier rodio buttons and 
+        #gets the value of the selected one as an int
+        selected_tier = None
         for tier  in tiers:
             if tier.value == True:
                 selected_tier = tier.label
@@ -304,18 +414,23 @@ class JourneyApp(App):
                     selected_tier = 2
                 else:
                     selected_tier = 3
+        if selected_tier == None: 
+            self.query_one(Notification).send_message("Tier Not Selected !", "")
+            return False
                 
         node = main_goal_tree.root.add(goal_input_data.value, 
-                                       data={"start_date": start_date.value,
-                                             "due_date": due_date.value,
-                                             "difficulty": difficulty.value,
+                                       data={"start_date": start_date_input.value,
+                                             "due_date": due_date_input.value,
+                                             "difficulty": difficulty_input.value,
                                              "tier": selected_tier,
                                              "description": description.text})
+        return True
         #NOTE could use node var to store in file just in case user exits or wants to finish later
         #the whole node tree and ALL data will be saved and can be easily put back in the tree
 
 
-
+    def run_validation_check(self):
+        ...
 
     def action_next_screen(self):
         """moves user to the next phase of the goal inputing phase"""
