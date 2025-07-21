@@ -56,7 +56,7 @@ class GoalMenu(VerticalGroup):
 
 
 class NotificationLevel(Enum):
-    INFO = "bold blue"
+    INFO = "italic white"
     WARNING = "bold yellow"
     ERROR = "bold red underline"
 
@@ -65,65 +65,71 @@ class Notification(Widget):
         super().__init__()
         self.noti_label: Label = Label(id=label_id)
         self.noti_static: Static = Static(content=content_text,id=static_id) 
-        self._notification_que: List[str|Text] = []
+        self._notification_que: List[Tuple[Text,str]] = []
         self.current_message: str
 
 
 
-
-    def add_to_que(self, message: str|Text, level: NotificationLevel):
+    def add_to_que(self, message: Text, level: NotificationLevel):
         """inserts data into the notification que depending on the NotificationLevel given,
-        INFO: goes last
-        WARNING: goes in the middle
-        ERROR: goes first"""
+        INFO: goes last, regular white text
+        WARNING: goes in the middle, italicized yellow text 
+        ERROR: goes first, bold red text"""
         match level:
             case NotificationLevel.INFO:
-                self._notification_que.append(message)
+                self._notification_que.append((message,NotificationLevel.INFO.value))
             case NotificationLevel.WARNING:
                 que_len = len(self._notification_que)
                 if que_len != 0:
                     idx = math.ceil(que_len/2)
-                    self._notification_que.insert(idx, message)
+                    self._notification_que.insert(idx, (message, NotificationLevel.WARNING.value))
                 else:
-                    self._notification_que.append(message)
+                    self._notification_que.append((message,NotificationLevel.WARNING.value))
             case NotificationLevel.ERROR:
-                self._notification_que.insert(0,message)
+                self._notification_que.insert(0,(message,NotificationLevel.ERROR.value))
         return 
 
 
     
-    def display_and_flush(self) -> bool:
+    def display_and_flush_que(self) -> bool:
+        """displays a range of differnt notification in their own repective colors
+        and then clears out the buffer"""
         if len(self._notification_que) == 0:
             return False
         else:
+            notification_messages: List[Text] = []
+            for msg,color in self._notification_que:
+                msg.stylize(color)
+                notification_messages.append(msg)
 
-            ...
-
-    
-
-
-
-
-    def on_mount(self):
-
-        ...
-
+            messages =  Text("\n").join(notification_messages)
+            self.noti_static.update(messages)
+            self._notification_que.clear()
+            return True
+            
 
 
-    def send_message(self, message: str|Text|list, label: str|Text):
-        
-        if isinstance(message, list):
-            return
-        self.noti_label.update(label)
+
+
+
+
+    def send_message(self, message: Text, level: NotificationLevel=NotificationLevel.WARNING):
+        """send a single notification message with a specific level"""
+        message.stylize(level.value)
         self.noti_static.update(message)
+
 
     def compose(self) -> ComposeResult:
         yield Center(
-                self.noti_label,
                 self.noti_static
                 )
 
 
+    def on_mount(self):
+        self.add_to_que(Text("This is an info notification"), NotificationLevel.INFO)
+        self.add_to_que(Text("uh oh, this is a warning"), NotificationLevel.WARNING)
+        self.add_to_que(Text("OH MY FUCKING GOD ! THIS IS A FUCKING EMERGENCY !!!"), NotificationLevel.ERROR)
+        self.display_and_flush_que()
 
 class MainGoalCollection(VerticalGroup):
     """widget for collecting all user goal info"""
@@ -215,9 +221,10 @@ class MainGoalCollection(VerticalGroup):
         if event.validation_result != None:
             notification = self.query_one(Notification)
             if not event.validation_result.is_valid: 
-                notification.send_message(Text("\n".join(event.validation_result.failure_descriptions), style=" bold red"), label="TEST")
+                notification.send_message(Text("\n".join(event.validation_result.failure_descriptions), style=" bold red"),
+                                          level=NotificationLevel.ERROR)
             else:
-                notification.send_message("", label="")
+                notification.send_message(Text(""))
         else:
             return
 
@@ -375,7 +382,7 @@ class JourneyApp(App):
         for widget in input_widgets:
             if not widget.is_valid:
                 widget.focus
-                notification_box.send_message("Invalid input !", "")
+                notification_box.send_message(Text("Invalid input !"), level=NotificationLevel.ERROR)
                 return False
                 
         return True
@@ -415,7 +422,7 @@ class JourneyApp(App):
                 else:
                     selected_tier = 3
         if selected_tier == None: 
-            self.query_one(Notification).send_message("Tier Not Selected !", "")
+            self.query_one(Notification).send_message(Text("Tier Not Selected !"),level=NotificationLevel.ERROR)
             return False
                 
         node = main_goal_tree.root.add(goal_input_data.value, 
