@@ -111,8 +111,6 @@ class Notification(Widget):
 
 
 
-
-
     def send_message(self, message: Text, level: NotificationLevel=NotificationLevel.WARNING):
         """send a single notification message with a specific level"""
         message.stylize(level.value)
@@ -305,38 +303,6 @@ class SubGoalCollection(VerticalGroup):
             yield TextArea(id="sg_description")
 
 
-class ToolTips(VerticalGroup):
-    """widget for displaying tips for any object the user is focused on"""
-
-
-    def fetch_dialog(self, header: str):
-        """Reads the dialog.md file and gets the correct lines of text
-        and gives it to the text area and updates it"""
-        dialogs = {}
-        buff = []
-        in_block = False
-        with open(Path("dialog.md"), 'r') as file:
-            contents = file.read()
-            for line in contents.splitlines():
-                if line.startswith("## ") and header in line[3:]:
-                    in_block = True
-                    continue
-                if in_block: # --- means end of the block 
-                    if line.startswith("---"):
-                        break
-                    buff.append(line)
-        dialogs[header] = '\n'.join(buff).strip()
-        return dialogs[header]
-
-
-
-    def compose(self) -> ComposeResult:
-        yield MarkdownViewer(markdown=self.fetch_dialog("tooltips_main_goal_name"),
-                             id="tooltips_md", show_table_of_contents=False)
-
-
-
-
 class JourneyApp(App): 
     """A comprehensive neovim terminal application"""
 
@@ -394,7 +360,6 @@ class JourneyApp(App):
 
     def add_main_goal_action(self) -> bool:
         """controls adding main goal to goal tree"""
-        noti = self.query_one("#notification_label", Label)
         main_goal_tree = self.app.query_one("#goals_tree", Tree)
         goal_input_data = self.app.query_one("#mg_goal_input", Input)
         start_date_input = self.app.query_one("#mg_start_date", Input)
