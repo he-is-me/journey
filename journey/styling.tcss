@@ -4,13 +4,15 @@ GoalMenu {
   width: 30%;
 }
 
-#main_goals{
-  
-  background: black;
-}
 
-#mg_main_horizontal{
+
+
+/*######## MainGoalCollection styles ########*/
+MainGoalCollection{
   
+  height: 100%;
+}
+#mg_main_horizontal{
   height: auto;
   margin: 3;
 }
@@ -27,6 +29,7 @@ GoalMenu {
   
   height: auto;
 }
+
 #mg_start_date{
   width: 1fr;
   margin: 1;
@@ -35,6 +38,7 @@ GoalMenu {
   width: 1fr;
   margin: 1;
 }
+
 #mg_difficulty{
   width: 1fr;
   margin: 1;
@@ -43,6 +47,7 @@ GoalMenu {
   width: 1fr;
   margin: 1;
 }
+
 #mg_t2{
   width: 1fr;
   margin: 1;
@@ -52,28 +57,98 @@ GoalMenu {
   margin: 1;
 }
 
-
-/*######## MainGoalCollection styles ########*/
-MainGoalCollection{
-  
-  height: 100%;
-}
-
 #mg_description_label{
   margin: 0 5;
   height: 5%;
 }
 
 #mg_description{
+  border: round green; 
   height: 12%;
   margin: 0 4;
   
 }
-
 #notification_static{
+  border: round red;
+  margin: 0 5;
+  width: auto;
+}
+
+/*######## end ########*/
+
+
+
+/*######## SubGoalCollection styles ########*/
+SubGoalCollection{
+  height: 1fr;
+}
+
+#sg_main_horizontal{
+  height: auto;
+  margin: 3;
+}
+#sg_goal_input {
+  margin: 1 4;
+}
+
+#sg_tier_vertical{
+  
+  height: auto; 
+}
+#sg_dates_dif_vertical{
+  height: auto;
+}
+
+#sg_due_date{
+  width: 1fr;
+  margin: 1;
+}
+#sg_difficulty{
+  width: 1fr;
+  margin: 1;
+}
+
+#sg_t1{
+  width: 1fr;
+  margin: 1;
+}
+#sg_t2{
+  width: 1fr;
+  margin: 1;
+}
+
+#sg_t3{
+  width: 1fr;
+  margin: 1;
+}
+
+#sg_description_horizontal{
+  margin: 0 4;
+  width: 1fr;
+  height: 35%;
+}
+
+#sg_question_textbox{
+  height: 100%;
+  margin: 0 1 0 0;
+}
+
+#sg_question{
+  margin: 1;
+}
+
+#sg_description{
+  margin: 1;
+}
+
+#sg_description_textbox{
+  height: 100%;
+  margin: 0 0 0 1
+}
+
+#sg_notification_static{
   margin: 0 5;
   width: auto;
 }
 /*######## end ########*/
-
 

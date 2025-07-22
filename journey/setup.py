@@ -1,3 +1,4 @@
+from dataclasses import dataclass, field
 from enum import Enum
 import math
 from platform import libc_ver
@@ -19,8 +20,22 @@ from textual.widgets import Button, Digits, Footer, Header, Input , Label, Markd
 from textual import log 
 from rich.text import Text
 
+#TODO if i make this node.data accesible in gloabl I need to make sure it changes everywhere else:
+# I need to also make sure that if the user decides to update the data it is updated everywhere
 
 
+class GoalType(Enum):
+    MAIN_GOAL = 'main_goal'
+    SUB_GOAL = 'sub_goal'
+    TASK_GOAL = 'task'
+
+@dataclass()
+class TreeNodeManager():
+    main_goal_nodes: dict[GoalType,dict] = field(default_factory=dict)
+    sub_goal_nodes: dict[GoalType,dict] = field(default_factory=dict)
+    task_nodes: dict[GoalType,dict] = field(default_factory=dict)
+    last_accessed_node: str = ""
+    last_accessed_node_id: int = 0
 
 
 
@@ -28,17 +43,27 @@ from rich.text import Text
 
 class GoalMenu(VerticalGroup):
     """The main goals area tree"""
+    node_manager = TreeNodeManager()
 
     def insert_root_node(self, tree_root: str, tree_id: str):
         tree: Tree[str] = Tree(Text(tree_root,style="bold underline"), id=tree_id)
         tree.root.expand()
         return tree
 
+    
+    def add_node_data(self, node: dict[str,int|str], goal_type: str, goal_name: str):
+        try:
+            self.node_manager.main_goal_nodes[GoalType.MAIN_GOAL][goal_name] = node
+        except Exception as e:
+            return False
+        else:
+            return True
 
 
 
     def on_tree_node_selected(self, event: Tree.NodeSelected):
         ...
+
 
 
     
@@ -226,6 +251,51 @@ class MainGoalCollection(VerticalGroup):
         else:
             return
 
+
+    
+
+
+
+
+class SubGoalCollection(VerticalGroup):
+    """collecting sub goals from user which are 2nd on the hierarchy of 
+    goals in journey. These goals are the ones that must be complete before
+    the maing goal is complete"""
+    subgoal_question = "What potential challenges do you foresee for this subgoal, and what's your plan to overcome them ? (optional)"
+    def compose(self) -> ComposeResult:
+        yield Input(placeholder="Goal Name", id="sg_goal_input", valid_empty=False,
+                    validate_on=['blur','changed'],
+                    validators=[Length(minimum=1, maximum=500, failure_description="Goal too short !")])
+
+        yield Horizontal(Vertical(Input(placeholder="Due Date (Day/Month/Year or Month/Year )", id="sg_due_date",
+                                        validate_on=['changed'],
+                                        validators=[DateValidator()]),
+
+                                  Input(placeholder="Difficulty (1-3) | 1 = Easy, 3 = Hard", id="sg_difficulty", 
+                                        type="number", validators=[Integer(minimum=1, maximum=3)], validate_on=["blur","submitted"]),
+                         id="sg_dates_dif_vertical",),
+
+                         Vertical(RadioButton(label="Tier 1 (Mission critical Goal)", id="sg_t1", disabled=False),
+                                  RadioButton(label="Tier 2 (High-Impact Goal)", id="sg_t2", disabled=False),
+                                  RadioButton(label="Tier 3 (Growth & Improvement)", id="sg_t3", disabled=False),
+                         id="sg_tier_vertical"),
+
+              id="sg_main_horizontal")
+
+
+        yield Horizontal(
+                        Vertical(Center(Label(Text(self.subgoal_question,justify='full'),shrink=True, id="sg_question")),
+                                 TextArea(id="sg_question_textbox")),
+                        Vertical(Center(Label("description (optional)\n", id="sg_description")),
+                                 TextArea(id='sg_description_textbox')),
+                         id='sg_description_horizontal')
+
+        
+
+        yield Notification(static_id="sg_notification_static")
+ 
+
+
     
 
 
@@ -277,30 +347,6 @@ class DateRangeValidator(Validator):
 
 
 
-
-
-
-    
-
-
-
-
-class SubGoalCollection(VerticalGroup):
-    """collecting sub goals from user which are 2nd on the hierarchy of 
-    goals in journey. These goals are the ones that must be complete before
-    the maing goal is complete"""
-
-    def compose(self) -> ComposeResult:
-            yield Input(placeholder="Goal Name", id="sg_goal_input")
-            yield Input(placeholder="Start Date (optional)", id="sg_start_date")
-            yield Input(placeholder="Due Date", id="sg_due_date")
-            yield Horizontal(RadioButton(label="Tier 1", id="sg_t1", disabled=False),
-                             RadioButton(label="Tier 2", id="sg_t2", disabled=False),
-                             RadioButton(label="Tier 3", id="sg_t3", disabled=False),
-                             Input(placeholder="Difficulty (1-3)", id="sg_difficulty", type="number"),
-                             id="sg_tier_horizontal")
-            yield Label(Text("Description (Optional)",style="bold"), id="sg_description_label")
-            yield TextArea(id="sg_description")
 
 
 class JourneyApp(App): 
@@ -395,8 +441,11 @@ class JourneyApp(App):
                                              "due_date": due_date_input.value,
                                              "difficulty": difficulty_input.value,
                                              "tier": selected_tier,
-                                             "description": description.text})
+                                             "description": description.text},
+                                       )
+        self.query_one("#mg_description", TextArea).text = str(node.data)
         return True
+
         #NOTE could use node var to store in file just in case user exits or wants to finish later
         #the whole node tree and ALL data will be saved and can be easily put back in the tree
 
@@ -404,20 +453,21 @@ class JourneyApp(App):
     def run_validation_check(self):
         ...
 
-    def action_next_screen(self):
+    async def action_next_screen(self):
         """moves user to the next phase of the goal inputing phase"""
         self.page_num += 1
         next_page = self.pages[self.page_num % len(self.pages)]
-        self.app.query(self.page_ids[(self.page_num % len(self.pages)) - 1]).remove() #remove current widget 
-        self.app.query_one("#screen").mount(next_page) # add next widget
+        await self.app.query(self.page_ids[(self.page_num % len(self.pages)) - 1]).remove() #remove current widget 
+        await self.app.query_one("#screen").mount(next_page) # add next widget
 
 
-    def action_previous_screen(self) -> None:
+    async def action_previous_screen(self) -> None:
         if self.page_num >= 1:
             next_page = self.pages[(self.page_num % len(self.pages)) - 1]
-            self.app.query(self.page_ids[(self.page_num % len(self.pages))]).remove() #remove main_goal_vert
+            await self.app.query(self.page_ids[(self.page_num % len(self.pages))]).remove() #remove main_goal_vert
             self.page_num -= 1
-            self.app.query_one("#screen").mount(next_page) # add sub_goal
+            await self.app.query_one("#screen").mount(next_page) # add sub_goal
+
 
 
 
