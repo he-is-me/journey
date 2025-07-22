@@ -399,6 +399,7 @@ class JourneyApp(App):
                 
         return True
 
+    
 
         
 
@@ -406,6 +407,11 @@ class JourneyApp(App):
 
     def add_main_goal_action(self) -> bool:
         """controls adding main goal to goal tree"""
+        #TODO recreate this function to be more flexible using the following 3 lines
+        kids = self.app.query_one(MainGoalCollection)
+        l = [x.value for x in kids.query(Input)]
+        self.query_one("#mg_description", TextArea).text = str(l)
+        ##########################################################
         main_goal_tree = self.app.query_one("#goals_tree", Tree)
         goal_input_data = self.app.query_one("#mg_goal_input", Input)
         start_date_input = self.app.query_one("#mg_start_date", Input)
@@ -443,7 +449,7 @@ class JourneyApp(App):
                                              "tier": selected_tier,
                                              "description": description.text},
                                        )
-        self.query_one("#mg_description", TextArea).text = str(node.data)
+        # self.query_one("#mg_description", TextArea).text = str(node.data)
         return True
 
         #NOTE could use node var to store in file just in case user exits or wants to finish later
