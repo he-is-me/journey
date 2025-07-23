@@ -12,6 +12,11 @@ MainGoalCollection{
   
   height: 100%;
 }
+
+#mg_title_label{
+  margin: 1;
+}
+
 #mg_main_horizontal{
   height: auto;
   margin: 3;
@@ -123,13 +128,13 @@ SubGoalCollection{
 }
 
 #sg_description_horizontal{
-  margin: 0 4;
+  margin: 1 4;
   width: 1fr;
   height: 35%;
 }
 
 #sg_question_textbox{
-  height: 100%;
+  height: 1fr;
   margin: 0 1 0 0;
 }
 
@@ -142,7 +147,7 @@ SubGoalCollection{
 }
 
 #sg_description_textbox{
-  height: 100%;
+  height: 1fr;
   margin: 0 0 0 1
 }
 

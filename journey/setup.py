@@ -11,6 +11,7 @@ from datetime import date, datetime
 from textual import on
 from textual.binding import Binding
 from textual.containers import Center, Horizontal, HorizontalGroup, HorizontalScroll, Vertical, VerticalGroup, VerticalScroll
+from textual.css.query import DOMQuery
 from textual.css.types import TextAlign
 from textual.reactive import reactive
 from textual.events import Focus
@@ -36,6 +37,10 @@ class TreeNodeManager():
     task_nodes: dict[GoalType,dict] = field(default_factory=dict)
     last_accessed_node: str = ""
     last_accessed_node_id: int = 0
+    main_goal_node_count: int = 0
+    sub_goal_node_count: int = 0
+    task_node_count: int = 0
+    
 
 
 
@@ -59,6 +64,9 @@ class GoalMenu(VerticalGroup):
         else:
             return True
 
+
+    def get_last_added_node(self):
+        return self.node_manager.last_accessed_node
 
 
     def on_tree_node_selected(self, event: Tree.NodeSelected):
@@ -196,6 +204,7 @@ class MainGoalCollection(VerticalGroup):
     def compose(self) -> ComposeResult:
         """ids prefixed with mg stands for Main Goal"""
         #TODO add tooltips to all of the inputs and description
+        yield Center(Label(Text("Main Goal",style="bold underline"),id="mg_title_label"))
         yield Input(placeholder="Goal Name", id="mg_goal_input", valid_empty=False,
                     validate_on=['blur','changed'],
                     validators=[Length(minimum=1, maximum=500, failure_description="Goal too short !")])
@@ -263,6 +272,7 @@ class SubGoalCollection(VerticalGroup):
     the maing goal is complete"""
     subgoal_question = "What potential challenges do you foresee for this subgoal, and what's your plan to overcome them ? (optional)"
     def compose(self) -> ComposeResult:
+        yield Center(Label(Text("",style="bold underline"),id="sg_title_label"))
         yield Input(placeholder="Goal Name", id="sg_goal_input", valid_empty=False,
                     validate_on=['blur','changed'],
                     validators=[Length(minimum=1, maximum=500, failure_description="Goal too short !")])
@@ -358,21 +368,32 @@ class JourneyApp(App):
 
     CSS_PATH = "styling.tcss"
 
-    page_num = 0
-    page_ids = ["MainGoalCollection", "SubGoalCollection"]
     main_goal_page = MainGoalCollection(id="main_goal_page")
     sub_goal_page = SubGoalCollection(id="sub_goal_page")
-    pages = [main_goal_page, sub_goal_page]
+    page_objects = [MainGoalCollection, SubGoalCollection]
+    page_instance = [main_goal_page, sub_goal_page]
+    page_num = 0
+    current_page_object = page_objects[page_num]
+    current_page_instance = page_instance[page_num]
 
 
     def compose(self) -> ComposeResult:
         yield Header()
         yield Horizontal(
                 GoalMenu(),
-                MainGoalCollection()
+                self.main_goal_page 
                 , id="screen")
 
         yield Footer()
+
+
+    
+    @classmethod
+    def flip_page(cls):
+        if cls.page_num < len(cls.page_objects):
+            cls.page_num += 1
+            return
+        cls.page_num = 0
 
 
 
@@ -380,8 +401,7 @@ class JourneyApp(App):
     def action_add_goal_type(self):
         """this is only for adding main goals, sub goals and task
         are added throguh selected events handling"""
-        if self.page_num == 0:
-            self.add_main_goal_action()
+        self.add_main_goal_action()
 
 
 
@@ -400,18 +420,58 @@ class JourneyApp(App):
         return True
 
     
+    def fetch_inputs(self, widgets: Widget, whole_object: bool=False, user_data: bool=True):
+        """Gives back user data of Input widgets by default or whole input objects, WARNING 
+           (you need to explicitly set user data to Flase IF you set whole_object to True
+           or else this function will raise an exception)"""
+        input_widgets = widgets.query(Input)
+        if user_data and whole_object:
+            raise Exception(f"ERROR ({self.fetch_inputs.__qualname__}) cannot fetch both whole_object and user data, just use query_one instead")
+        if user_data:
+            return [x.value for x in input_widgets]
+        if whole_object:
+            return [x for x in input_widgets]
 
-        
+
+
+    def fetch_tiers(self, widgets: Widget, whole_object: bool=False, user_data: bool=True):
+        """Gives back user data of Radio Button widgets by default or whole input objects, 
+           WARNING (you need to explicitly set user data to Flase IF you set whole_object 
+           to True or else this function will raise an exception)"""
+        radio_button_widgets = widgets.query(RadioButton)
+        if user_data and whole_object:
+            raise Exception(f"ERROR ({self.fetch_tiers.__qualname__}) cannot  fetch both whole_object and user data, just use query_one instead")
+        if user_data:
+            return [x.value for x in radio_button_widgets]
+        if whole_object:
+            return [x for x in radio_button_widgets]
+
+
+    def fetch_text_area(self, widgets: Widget, whole_object: bool=False, user_data: bool=True):
+        """Gives back user data of Text Area widgets by default or whole input objects, 
+           WARNING (you need to explicitly set user data to Flase IF you set whole_object 
+           to True or else this function will raise an exception)"""
+        text_area_widgets = widgets.query(TextArea)
+        if user_data and whole_object:
+            raise Exception(f"ERROR ({self.fetch_text_area.__qualname__}) cannot fetch both whole_object and user data, just use query_one instead")
+        if user_data:
+            return [x.text for x in text_area_widgets]
+        if whole_object:
+            return [x for x in text_area_widgets]
+
+
+
+
+    def add_goal_action(self):
+        all_child_widgets = self.app.query_one(self.current_page_object) # gets all of the widgets from current page 
+
+
+
 
 
 
     def add_main_goal_action(self) -> bool:
         """controls adding main goal to goal tree"""
-        #TODO recreate this function to be more flexible using the following 3 lines
-        kids = self.app.query_one(MainGoalCollection)
-        l = [x.value for x in kids.query(Input)]
-        self.query_one("#mg_description", TextArea).text = str(l)
-        ##########################################################
         main_goal_tree = self.app.query_one("#goals_tree", Tree)
         goal_input_data = self.app.query_one("#mg_goal_input", Input)
         start_date_input = self.app.query_one("#mg_start_date", Input)
@@ -462,17 +522,16 @@ class JourneyApp(App):
     async def action_next_screen(self):
         """moves user to the next phase of the goal inputing phase"""
         self.page_num += 1
-        next_page = self.pages[self.page_num % len(self.pages)]
-        await self.app.query(self.page_ids[(self.page_num % len(self.pages)) - 1]).remove() #remove current widget 
+        next_page = self.page_instance[self.page_num % len(self.page_instance)]
+        await self.app.query(self.page_objects[(self.page_num % len(self.page_instance)) - 1]).remove() #remove current widget 
         await self.app.query_one("#screen").mount(next_page) # add next widget
 
 
     async def action_previous_screen(self) -> None:
         if self.page_num >= 1:
-            next_page = self.pages[(self.page_num % len(self.pages)) - 1]
-            await self.app.query(self.page_ids[(self.page_num % len(self.pages))]).remove() #remove main_goal_vert
+            await self.app.query(self.page_objects[(self.page_num % len(self.page_instance))]).remove() #remove current widget
             self.page_num -= 1
-            await self.app.query_one("#screen").mount(next_page) # add sub_goal
+            await self.app.query_one("#screen").mount(self.current_page_instance) # add next widget
 
 
 
