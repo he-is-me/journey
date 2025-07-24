@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from enum import Enum
 import math
-from platform import libc_ver
+from platform import libc_ver, node
 from typing import List, Tuple
 from fileinput import filename
 from tokenize import Number
@@ -11,6 +11,7 @@ from datetime import date, datetime
 from textual import on
 from textual.binding import Binding
 from textual.containers import Center, Horizontal, HorizontalGroup, HorizontalScroll, Vertical, VerticalGroup, VerticalScroll
+from textual.content import TRANSPARENT_STYLE
 from textual.css.query import DOMQuery
 from textual.css.types import TextAlign
 from textual.reactive import reactive
@@ -20,6 +21,7 @@ from textual.widget import Widget
 from textual.widgets import Button, Digits, Footer, Header, Input , Label, MarkdownViewer, Pretty, RadioButton, Rule, Static, TextArea, Tree, Label
 from textual import log 
 from rich.text import Text
+from textual.widgets._tree import TreeNode
 
 #TODO if i make this node.data accesible in gloabl I need to make sure it changes everywhere else:
 # I need to also make sure that if the user decides to update the data it is updated everywhere
@@ -30,23 +32,63 @@ class GoalType(Enum):
     SUB_GOAL = 'sub_goal'
     TASK_GOAL = 'task'
 
+
 @dataclass()
 class TreeNodeManager():
-    main_goal_nodes: dict[GoalType,dict] = field(default_factory=dict)
-    sub_goal_nodes: dict[GoalType,dict] = field(default_factory=dict)
-    task_nodes: dict[GoalType,dict] = field(default_factory=dict)
-    last_accessed_node: str = ""
-    last_accessed_node_id: int = 0
+
+    last_added_main_node: TreeNode|None = None 
+    last_added_sub_node: TreeNode|None = None
+    last_added_task_node: TreeNode|None = None
+    main_goal_nodes: dict[str,dict] = field(default_factory=dict)
+    last_added_node_id: int = 0
     main_goal_node_count: int = 0
     sub_goal_node_count: int = 0
     task_node_count: int = 0
     
 
+    def get_last_added_node(self, node_type: GoalType ) -> TreeNode:
+        """we use GoalType to check for node type because the 
+        type of goal is the same as the type of node 
+        i.e: main_goal refers to a main_node"""
+        #NOTE might need to remove this error throw as it could 
+        # cause problems later 
+        if (self.last_added_main_node == None or
+            self.last_added_sub_node == None or
+            self.last_added_task_node == None):
+            raise Exception(f"ERROR ({self.__class__.__name__}): No node set yet")
+        if node_type == GoalType.MAIN_GOAL:
+            return self.last_added_main_node
+        elif node_type == GoalType.SUB_GOAL:
+            return self.last_added_sub_node
+        else:
+            return self.last_added_task_node
+
+    def get_node_by_label(self, node_label: str, node_type: GoalType) -> dict | None:
+        if node_type == GoalType.MAIN_GOAL:
+            return self.main_goal_nodes.get(node_label).values()
+                
+
+
+
+    def set_last_added_node(self, node: TreeNode, node_type: GoalType) -> None:
+        if node_type == GoalType.MAIN_GOAL:
+            self.last_added_main_node = node
+            self.last_added_node_id = node.id
+            self.main_goal_node_count += 1
+        elif node_type == GoalType.SUB_GOAL:
+            self.last_added_sub_node = node
+            self.last_added_node_id = node.id
+            self.sub_goal_node_count += 1
+        else:
+            self.last_added_task_node = node
+            self.last_added_node_id = node.id
+            self.task_node_count += 1
+            
 
 
 
 
-class GoalMenu(VerticalGroup):
+class GoalTree(VerticalGroup):
     """The main goals area tree"""
     node_manager = TreeNodeManager()
 
@@ -380,7 +422,7 @@ class JourneyApp(App):
     def compose(self) -> ComposeResult:
         yield Header()
         yield Horizontal(
-                GoalMenu(),
+                GoalTree(),
                 self.main_goal_page 
                 , id="screen")
 
@@ -509,6 +551,7 @@ class JourneyApp(App):
                                              "tier": selected_tier,
                                              "description": description.text},
                                        )
+
         # self.query_one("#mg_description", TextArea).text = str(node.data)
         return True
 
