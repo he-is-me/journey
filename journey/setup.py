@@ -1,8 +1,8 @@
 from dataclasses import dataclass, field
 from enum import Enum
 import math
+from optparse import Option
 from platform import libc_ver, node
-from typing import List, Tuple
 from fileinput import filename
 from tokenize import Number
 from textual.app import App, ComposeResult
@@ -22,10 +22,14 @@ from textual.widgets import Button, Digits, Footer, Header, Input , Label, Markd
 from textual import log 
 from rich.text import Text
 from textual.widgets._tree import TreeNode
+from typing import Any, Optional, TypeAlias, Dict, Type, TypedDict, Union, TYPE_CHECKING
 
 #TODO if i make this node.data accesible in gloabl I need to make sure it changes everywhere else:
 # I need to also make sure that if the user decides to update the data it is updated everywhere
 
+
+class MainGoalLayer(TypedDict):
+    node: TreeNode
 
 class GoalType(Enum):
     MAIN_GOAL = 'main_goal'
@@ -33,56 +37,103 @@ class GoalType(Enum):
     TASK_GOAL = 'task'
 
 
+
 @dataclass()
 class TreeNodeManager():
-
-    last_added_main_node: TreeNode|None = None 
-    last_added_sub_node: TreeNode|None = None
-    last_added_task_node: TreeNode|None = None
-    main_goal_nodes: dict[str,dict] = field(default_factory=dict)
+    last_added_node: TreeNode|None = None 
+    last_added_node_type: GoalType|None=None
+    node_dict: Dict[str,MainGoalLayer] = field(default_factory=dict) #keys are goal names: values is data associated to node
     last_added_node_id: int = 0
     main_goal_node_count: int = 0
     sub_goal_node_count: int = 0
     task_node_count: int = 0
     
 
-    def get_last_added_node(self, node_type: GoalType ) -> TreeNode:
+    def get_last_added_node(self) -> TreeNode:
         """we use GoalType to check for node type because the 
         type of goal is the same as the type of node 
         i.e: main_goal refers to a main_node"""
         #NOTE might need to remove this error throw as it could 
         # cause problems later 
-        if (self.last_added_main_node == None or
-            self.last_added_sub_node == None or
-            self.last_added_task_node == None):
-            raise Exception(f"ERROR ({self.__class__.__name__}): No node set yet")
-        if node_type == GoalType.MAIN_GOAL:
-            return self.last_added_main_node
-        elif node_type == GoalType.SUB_GOAL:
-            return self.last_added_sub_node
+        if self.last_added_node != None:
+            return self.last_added_node
         else:
-            return self.last_added_task_node
+            raise Exception(f"ERROR in ({self.__class__.__qualname__}: No nodes added to dataclass yet !)")
 
-    def get_node_by_label(self, node_label: str, node_type: GoalType) -> dict | None:
+
+
+
+    def get_node_by_label(self,main_node_label: str, node_type: GoalType,
+                          sub_node_label: str | None=None, task_node_label: str | None=None,) -> TreeNode | None:
         if node_type == GoalType.MAIN_GOAL:
-            return self.main_goal_nodes.get(node_label).values()
-                
+            a = self.node_dict.get(main_node_label)
+            if isinstance(a, dict):
+                return a.get("node") 
 
+        if node_type == GoalType.SUB_GOAL and sub_node_label != None:
+            a = self.node_dict.get(main_node_label)
+            if isinstance(a,dict):
+                d = a.get(sub_node_label)
+                if isinstance(d,dict):
+                    return d.get("node")
 
+        if node_type == GoalType.TASK_GOAL and sub_node_label != None:
+            a = self.node_dict[main_node_label].get(sub_node_label)
+            if isinstance(a,dict):
+                return a.get(task_node_label)
 
-    def set_last_added_node(self, node: TreeNode, node_type: GoalType) -> None:
+    def insert_node(self, main_node_label: str,node_type: GoalType, node: TreeNode,
+                    sub_node_label: str|None=None, task_node_label: str|None=None) -> bool:
+        """insert a node into the node dict"""
         if node_type == GoalType.MAIN_GOAL:
-            self.last_added_main_node = node
-            self.last_added_node_id = node.id
-            self.main_goal_node_count += 1
-        elif node_type == GoalType.SUB_GOAL:
-            self.last_added_sub_node = node
-            self.last_added_node_id = node.id
-            self.sub_goal_node_count += 1
-        else:
-            self.last_added_task_node = node
-            self.last_added_node_id = node.id
-            self.task_node_count += 1
+            try:
+                self.node_dict[main_node_label]["node"] = node 
+            except Exception as e:
+                #TODO log err
+                return False
+            return True
+        elif node_type == GoalType.SUB_GOAL and sub_node_label != None and task_node_label != None:
+            try:
+                self.node_dict[main_node_label][sub_node_label] = node
+            except Exception as e:
+                #TODO log err
+                return False
+            return True
+        elif sub_node_label != None and task_node_label != None:
+            try:
+                self.node_dict[main_node_label][sub_node_label][task_node_label] = node
+            except Exception as e:
+                #TODO log err
+                return False
+            return True
+        return False
+
+
+    def update_node_data(self, node_data: Any, node_type: GoalType, main_node_label: str,
+                         sub_node_label: str|None=None, task_node_label: str|None=None):
+        ...
+
+
+
+
+    def set_last_added_node(self, node: TreeNode, node_type: GoalType, main_node_label: str,
+                            sub_node_label: str|None=None, task_node_label: str|None=None) -> bool:
+        try:
+            if sub_node_label is None and task_node_label is None:
+                self.insert_node(main_node_label=main_node_label, node=node, node_type=node_type)
+            elif isinstance(sub_node_label,str):
+                self.insert_node(main_node_label=main_node_label, sub_node_label=sub_node_label,
+                                 node_type=node_type, node=node)
+            else:
+                self.insert_node(main_node_label=main_node_label, sub_node_label=sub_node_label,
+                                 task_node_label=task_node_label, node_type=node_type, node=node)
+        except Exception as e:
+            #TODO log err 
+            return False
+        self.last_added_node = node
+        self.last_added_node_id = node.id
+        self.last_added_node_type = node_type
+        return True
             
 
 
@@ -98,13 +149,9 @@ class GoalTree(VerticalGroup):
         return tree
 
     
-    def add_node_data(self, node: dict[str,int|str], goal_type: str, goal_name: str):
-        try:
-            self.node_manager.main_goal_nodes[GoalType.MAIN_GOAL][goal_name] = node
-        except Exception as e:
-            return False
-        else:
-            return True
+    def add_node_data(self, node: TreeNode, goal_type: GoalType, goal_name: str):
+
+        ...
 
 
     def get_last_added_node(self):
