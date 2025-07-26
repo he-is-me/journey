@@ -1,28 +1,18 @@
+from ast import Tuple
 from dataclasses import dataclass, field
 from enum import Enum
 import math
-from optparse import Option
-from platform import libc_ver, node
-from fileinput import filename
-from tokenize import Number
 from textual.app import App, ComposeResult
-from pathlib import Path
-from datetime import date, datetime
+from datetime import  datetime
 from textual import on
 from textual.binding import Binding
-from textual.containers import Center, Horizontal, HorizontalGroup, HorizontalScroll, Vertical, VerticalGroup, VerticalScroll
-from textual.content import TRANSPARENT_STYLE
-from textual.css.query import DOMQuery
-from textual.css.types import TextAlign
-from textual.reactive import reactive
-from textual.events import Focus
+from textual.containers import Center, Horizontal, Vertical, VerticalGroup
 from textual.validation import Integer, Length, ValidationResult, Validator
 from textual.widget import Widget
-from textual.widgets import Button, Digits, Footer, Header, Input , Label, MarkdownViewer, Pretty, RadioButton, Rule, Static, TextArea, Tree, Label
-from textual import log 
+from textual.widgets import Footer, Header, Input , Label,  RadioButton,  Static, TextArea, Tree, Label
 from rich.text import Text
 from textual.widgets._tree import TreeNode
-from typing import Any, Optional, TypeAlias, Dict, Type, TypedDict, Union, TYPE_CHECKING
+from typing import Any,Tuple,  Dict, List,  TypedDict
 
 #TODO if i make this node.data accesible in gloabl I need to make sure it changes everywhere else:
 # I need to also make sure that if the user decides to update the data it is updated everywhere
@@ -63,21 +53,21 @@ class TreeNodeManager():
 
 
 
-    def get_node_by_label(self,main_node_label: str, node_type: GoalType,
-                          sub_node_label: str | None=None, task_node_label: str | None=None,) -> TreeNode | None:
-        if node_type == GoalType.MAIN_GOAL:
+    def get_node_by_label(self,main_node_label: str, sub_node_label: str | None=None,
+                          task_node_label: str | None=None,) -> TreeNode | None:
+        if sub_node_label == None and task_node_label == None:
             a = self.node_dict.get(main_node_label)
             if isinstance(a, dict):
                 return a.get("node") 
 
-        if node_type == GoalType.SUB_GOAL and sub_node_label != None:
+        elif sub_node_label != None and task_node_label == None:
             a = self.node_dict.get(main_node_label)
             if isinstance(a,dict):
                 d = a.get(sub_node_label)
                 if isinstance(d,dict):
                     return d.get("node")
 
-        if node_type == GoalType.TASK_GOAL and sub_node_label != None:
+        elif sub_node_label != None and task_node_label != None:
             a = self.node_dict[main_node_label].get(sub_node_label)
             if isinstance(a,dict):
                 return a.get(task_node_label)
@@ -110,8 +100,20 @@ class TreeNodeManager():
 
 
     def update_node_data(self, node_data: Any, node_type: GoalType, main_node_label: str,
-                         sub_node_label: str|None=None, task_node_label: str|None=None):
-        ...
+                         new_data: Any, sub_node_label: str|None=None, task_node_label: str|None=None) -> bool:
+        node = None
+        if self.last_added_node != None and node_type == self.last_added_node_type:
+            self.get_last_added_node().data = new_data
+        elif sub_node_label == None and task_node_label == None:
+            node = self.get_node_by_label(main_node_label)
+        elif sub_node_label != None and task_node_label == None:
+            node = self.get_node_by_label(main_node_label, sub_node_label)
+        elif sub_node_label != None and task_node_label != None:
+            node = self.get_node_by_label(main_node_label, sub_node_label,task_node_label)
+        if isinstance(node, TreeNode):
+            node.data = new_data
+            return True
+        return False
 
 
 
@@ -143,19 +145,15 @@ class GoalTree(VerticalGroup):
     """The main goals area tree"""
     node_manager = TreeNodeManager()
 
-    def insert_root_node(self, tree_root: str, tree_id: str):
-        tree: Tree[str] = Tree(Text(tree_root,style="bold underline"), id=tree_id)
-        tree.root.expand()
-        return tree
-
+    initial_tree: Tree[str] = Tree(Text("Goals",style="bold underline"), id="goals_tree")
+    root_node = initial_tree.root
     
-    def add_node_data(self, node: TreeNode, goal_type: GoalType, goal_name: str):
-
+    def insert_new_branch(self, label: str, goal_type: GoalType):
         ...
 
 
     def get_last_added_node(self):
-        return self.node_manager.last_accessed_node
+        return self.node_manager.last_added_node
 
 
     def on_tree_node_selected(self, event: Tree.NodeSelected):
@@ -172,7 +170,7 @@ class GoalTree(VerticalGroup):
 
     def compose(self) -> ComposeResult:
         #TODO make sure that I know this really wants to take args or not !
-        yield self.insert_root_node("Goals", "goals_tree")
+        yield self.initial_tree
 
         # yield self.insert_new_goalTree("Sub Goals", "sub_goals")
 

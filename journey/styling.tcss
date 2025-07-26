@@ -1,4 +1,4 @@
-GoalMenu {
+GoalTree{
   
   height: 100%;
   width: 30%;
@@ -9,7 +9,6 @@ GoalMenu {
 
 /*######## MainGoalCollection styles ########*/
 MainGoalCollection{
-  
   height: 100%;
 }
 
