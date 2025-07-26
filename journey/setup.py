@@ -1,6 +1,7 @@
 from ast import Tuple
 from dataclasses import dataclass, field
 from enum import Enum
+from logging import root
 import math
 from textual.app import App, ComposeResult
 from datetime import  datetime
@@ -77,21 +78,21 @@ class TreeNodeManager():
         """insert a node into the node dict"""
         if node_type == GoalType.MAIN_GOAL:
             try:
-                self.node_dict[main_node_label]["node"] = node 
+                self.node_dict[main_node_label] = {"node": node}  
             except Exception as e:
                 #TODO log err
                 return False
             return True
         elif node_type == GoalType.SUB_GOAL and sub_node_label != None and task_node_label != None:
             try:
-                self.node_dict[main_node_label][sub_node_label] = node
+                self.node_dict[main_node_label][sub_node_label] = {"node":node}
             except Exception as e:
                 #TODO log err
                 return False
             return True
         elif sub_node_label != None and task_node_label != None:
             try:
-                self.node_dict[main_node_label][sub_node_label][task_node_label] = node
+                self.node_dict[main_node_label][sub_node_label][task_node_label] = {"node":node}
             except Exception as e:
                 #TODO log err
                 return False
@@ -119,7 +120,7 @@ class TreeNodeManager():
 
 
     def set_last_added_node(self, node: TreeNode, node_type: GoalType, main_node_label: str,
-                            sub_node_label: str|None=None, task_node_label: str|None=None) -> bool:
+                            sub_node_label: str|None=None, task_node_label: str|None=None) :
         try:
             if sub_node_label is None and task_node_label is None:
                 self.insert_node(main_node_label=main_node_label, node=node, node_type=node_type)
@@ -145,11 +146,20 @@ class GoalTree(VerticalGroup):
     """The main goals area tree"""
     node_manager = TreeNodeManager()
 
-    initial_tree: Tree[str] = Tree(Text("Goals",style="bold underline"), id="goals_tree")
+    initial_tree: Tree[str] = Tree(Text("Goals",style="bold underline"), id="goal_tree")
     root_node = initial_tree.root
+    root_node.expand()
     
-    def insert_new_branch(self, label: str, goal_type: GoalType):
-        ...
+    def insert_new_branch(self, label: str, node_data: Any) -> bool:
+        node = self.root_node.add(label=label, data=node_data)
+        check = self.node_manager.insert_node(main_node_label=label, node_type=GoalType.MAIN_GOAL,node=node)
+        if check:
+            self.node_manager.set_last_added_node(node=node,node_type=GoalType.MAIN_GOAL,main_node_label=label)
+            self.app.query_one("#mg_description", TextArea).text = str(self.node_manager.get_node_by_label(label))
+            return True
+        else:
+            self.app.query_one("#mg_description", TextArea).text = "it fucking failed bruh"
+            return False
 
 
     def get_last_added_node(self):
@@ -455,6 +465,7 @@ class JourneyApp(App):
 
     CSS_PATH = "styling.tcss"
 
+    goal_tree_cls = GoalTree()
     main_goal_page = MainGoalCollection(id="main_goal_page")
     sub_goal_page = SubGoalCollection(id="sub_goal_page")
     page_objects = [MainGoalCollection, SubGoalCollection]
@@ -467,7 +478,7 @@ class JourneyApp(App):
     def compose(self) -> ComposeResult:
         yield Header()
         yield Horizontal(
-                GoalTree(),
+                self.goal_tree_cls,
                 self.main_goal_page 
                 , id="screen")
 
@@ -559,7 +570,7 @@ class JourneyApp(App):
 
     def add_main_goal_action(self) -> bool:
         """controls adding main goal to goal tree"""
-        main_goal_tree = self.app.query_one("#goals_tree", Tree)
+        goal_tree = self.app.query_one("#goal_tree", Tree)
         goal_input_data = self.app.query_one("#mg_goal_input", Input)
         start_date_input = self.app.query_one("#mg_start_date", Input)
         due_date_input = self.app.query_one("#mg_due_date", Input)
@@ -589,13 +600,15 @@ class JourneyApp(App):
             self.query_one(Notification).send_message(Text("Tier Not Selected !"),level=NotificationLevel.ERROR)
             return False
                 
-        node = main_goal_tree.root.add(goal_input_data.value, 
-                                       data={"start_date": start_date_input.value,
-                                             "due_date": due_date_input.value,
-                                             "difficulty": difficulty_input.value,
-                                             "tier": selected_tier,
-                                             "description": description.text},
-                                       )
+        self.goal_tree_cls.insert_new_branch(label=goal_input_data.value, node_data="FUCK YEA")        
+        # node = goal_tree.root.add(goal_input_data.value, 
+        #                                data={"start_date": start_date_input.value,
+        #                                      "due_date": due_date_input.value,
+        #                                      "difficulty": difficulty_input.value,
+        #                                      "tier": selected_tier,
+        #                                      "description": description.text
+        #                                      }
+        #                                )
 
         # self.query_one("#mg_description", TextArea).text = str(node.data)
         return True
