@@ -8,6 +8,7 @@ from datetime import  datetime
 from textual import on
 from textual.binding import Binding
 from textual.containers import Center, Horizontal, Vertical, VerticalGroup
+from textual.reactive import reactive
 from textual.validation import Integer, Length, ValidationResult, Validator
 from textual.widget import Widget
 from textual.widgets import Footer, Header, Input , Label,  RadioButton,  Static, TextArea, Tree, Label
@@ -146,21 +147,25 @@ class GoalTree(VerticalGroup):
     """The main goals area tree"""
     node_manager = TreeNodeManager()
 
-    initial_tree: Tree[str] = Tree(Text("Goals",style="bold underline"), id="goal_tree")
+    initial_tree: Tree[dict] = Tree(Text("Goals",style="bold underline"), id="goal_tree")
     root_node = initial_tree.root
+    tree_root: reactive[TreeNode] = reactive(root_node)
     root_node.expand()
     
-    def insert_new_branch(self, label: str, node_data: Any) -> bool:
+    def insert_new_branch(self, label: str, node_data: dict) -> bool:
         node = self.root_node.add(label=label, data=node_data)
         check = self.node_manager.insert_node(main_node_label=label, node_type=GoalType.MAIN_GOAL,node=node)
         if check:
             self.node_manager.set_last_added_node(node=node,node_type=GoalType.MAIN_GOAL,main_node_label=label)
-            self.app.query_one("#mg_description", TextArea).text = str(self.node_manager.get_node_by_label(label))
             return True
         else:
-            self.app.query_one("#mg_description", TextArea).text = "it fucking failed bruh"
             return False
-
+    
+    def insert_on_branch(self, sub_goal_label: str, task_goal_label: str|None, node_data: dict):
+        if task_goal_label == None:
+            main_goal = self.node_manager.last_added_node
+            if isinstance(main_goal, TreeNode):
+                main_goal.add(label=sub_goal_label, data=node_data)
 
     def get_last_added_node(self):
         return self.node_manager.last_added_node
@@ -170,6 +175,9 @@ class GoalTree(VerticalGroup):
         ...
 
 
+    def update_node_manager(self):
+        self.app.query_one("#mg_description", TextArea).text = "RUNNING REACTIVE UPDATE !"
+        ...
 
     
 
@@ -600,15 +608,14 @@ class JourneyApp(App):
             self.query_one(Notification).send_message(Text("Tier Not Selected !"),level=NotificationLevel.ERROR)
             return False
                 
-        self.goal_tree_cls.insert_new_branch(label=goal_input_data.value, node_data="FUCK YEA")        
-        # node = goal_tree.root.add(goal_input_data.value, 
-        #                                data={"start_date": start_date_input.value,
-        #                                      "due_date": due_date_input.value,
-        #                                      "difficulty": difficulty_input.value,
-        #                                      "tier": selected_tier,
-        #                                      "description": description.text
-        #                                      }
-        #                                )
+        node = goal_tree.root.add(goal_input_data.value, 
+                                       data={"start_date": start_date_input.value,
+                                             "due_date": due_date_input.value,
+                                             "difficulty": difficulty_input.value,
+                                             "tier": selected_tier,
+                                             "description": description.text
+                                             }
+                                       )
 
         # self.query_one("#mg_description", TextArea).text = str(node.data)
         return True
