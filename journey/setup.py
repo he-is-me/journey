@@ -33,6 +33,9 @@ class GoalType(Enum):
 
 @dataclass()
 class TreeNodeManager():
+    last_added_main_node: TreeNode|None=None
+    last_added_sub_node: TreeNode|None=None
+    last_added_task_node: TreeNode|None=None
     last_added_node: TreeNode|None = None 
     last_added_node_type: GoalType|None=None
     node_dict: Dict[str,MainGoalLayer] = field(default_factory=dict) #keys are goal names: values is data associated to node
@@ -53,6 +56,9 @@ class TreeNodeManager():
         else:
             raise Exception(f"ERROR in ({self.__class__.__qualname__}: No nodes added to dataclass yet !)")
 
+    
+    def get_node_dict(self) -> Dict[str,MainGoalLayer]:
+        return self.node_dict
 
 
 
@@ -77,31 +83,39 @@ class TreeNodeManager():
 
 
 
-    def insert_node(self, main_node_label: str,node_type: GoalType, node: TreeNode,
+    def insert_new_node(self, main_node_label: str,node_type: GoalType, node: TreeNode,
                     sub_node_label: str|None=None, task_node_label: str|None=None) -> bool:
         """insert a node into the node dict"""
-        if node_type == GoalType.MAIN_GOAL:
-            try:
-                self.node_dict[main_node_label] = {"node": node}  
-            except Exception as e:
-                #TODO log err
-                return False
+        try:
+            if node_type == GoalType.MAIN_GOAL:
+                    self.node_dict[main_node_label] = {"node": node}  
+            elif node_type == GoalType.SUB_GOAL and sub_node_label != None and task_node_label != None:
+                    self.node_dict[main_node_label][sub_node_label] = {"node":node}
+            elif sub_node_label != None and task_node_label != None:
+                    self.node_dict[main_node_label][sub_node_label][task_node_label] = {"node":node}
+            self.last_added_node_type = node_type
+            self.last_added_node = node
+            self.last_added_main_node = node
             return True
-        elif node_type == GoalType.SUB_GOAL and sub_node_label != None and task_node_label != None:
-            try:
-                self.node_dict[main_node_label][sub_node_label] = {"node":node}
-            except Exception as e:
-                #TODO log err
-                return False
-            return True
-        elif sub_node_label != None and task_node_label != None:
-            try:
-                self.node_dict[main_node_label][sub_node_label][task_node_label] = {"node":node}
-            except Exception as e:
-                #TODO log err
-                return False
-            return True
-        return False
+        except Exception as e:
+            #TODO log err
+            return False
+
+
+    def insert_node_on_last(self, node: TreeNode, node_type: GoalType):
+        if node_type == GoalType.SUB_GOAL and (self.last_added_sub_node != None and
+                                               self.last_added_main_node != None):
+            
+            #PROCEED
+
+
+
+
+        
+        
+         
+
+
 
 
     def update_node_data(self, node_data: Any, node_type: GoalType, main_node_label: str,
@@ -127,12 +141,12 @@ class TreeNodeManager():
                             sub_node_label: str|None=None, task_node_label: str|None=None) :
         try:
             if sub_node_label is None and task_node_label is None:
-                self.insert_node(main_node_label=main_node_label, node=node, node_type=node_type)
+                self.insert_new_node(main_node_label=main_node_label, node=node, node_type=node_type)
             elif isinstance(sub_node_label,str):
-                self.insert_node(main_node_label=main_node_label, sub_node_label=sub_node_label,
+                self.insert_new_node(main_node_label=main_node_label, sub_node_label=sub_node_label,
                                  node_type=node_type, node=node)
             else:
-                self.insert_node(main_node_label=main_node_label, sub_node_label=sub_node_label,
+                self.insert_new_node(main_node_label=main_node_label, sub_node_label=sub_node_label,
                                  task_node_label=task_node_label, node_type=node_type, node=node)
         except Exception as e:
             #TODO log err 
@@ -157,7 +171,7 @@ class GoalTree(VerticalGroup):
     
     def insert_new_branch(self, label: str, node_data: dict) -> bool:
         node = self.root_node.add(label=label, data=node_data)
-        check = self.node_manager.insert_node(main_node_label=label, node_type=GoalType.MAIN_GOAL,node=node)
+        check = self.node_manager.insert_new_node(main_node_label=label, node_type=GoalType.MAIN_GOAL,node=node)
         if check:
             self.node_manager.set_last_added_node(node=node,node_type=GoalType.MAIN_GOAL,main_node_label=label)
             return True
@@ -166,9 +180,9 @@ class GoalTree(VerticalGroup):
     
     def insert_on_branch(self, sub_goal_label: str,node_data: dict, task_goal_label: str|None=None):
         if task_goal_label == None:
-            main_goal = self.node_manager.last_added_node
-            if isinstance(main_goal, TreeNode):
-                main_goal.add(label=sub_goal_label, data=node_data)
+            last_goal = self.node_manager.last_added_node
+            if isinstance(last_goal, TreeNode):
+                last_goal.add(label=sub_goal_label, data=node_data)
 
     def get_last_added_node(self):
         return self.node_manager.last_added_node
@@ -402,8 +416,9 @@ class SubGoalCollection(VerticalGroup):
         yield Horizontal(
                         Vertical(Center(Label(Text(self.subgoal_question,justify='full'),shrink=True, id="sg_question")),
                                  TextArea(id="sg_question_textbox")),
-                        Vertical(Center(Label("description (optional)\n", id="sg_description")),
-                                 TextArea(id='sg_description_textbox')),
+                        #TODO fix these fucking ID's you dumbass !!! why do you make life harder ????
+                        Vertical(Center(Label("description (optional)\n", id="sg_description_center_container")),
+                                 TextArea(id='sg_description')),
                          id='sg_description_horizontal')
 
         
@@ -473,7 +488,8 @@ class JourneyApp(App):
 
     BINDINGS = [("ctrl+n", "next_screen", "Go next " ),
                 ("ctrl+b", "previous_screen", "Go back"),
-                Binding("ctrl+a", "add_goal_type", "Add Goal", priority=True)] 
+                Binding("ctrl+a", "add_goal_type", "Add Goal", priority=True),
+                ("ctrl+f", "testing_shit", "testing shit")] 
 
     CSS_PATH = "styling.tcss"
 
@@ -482,9 +498,9 @@ class JourneyApp(App):
     sub_goal_page = SubGoalCollection(id="sub_goal_page")
     page_objects = [MainGoalCollection, SubGoalCollection]
     page_instance = [main_goal_page, sub_goal_page]
-    page_num = 0
-    current_page_object = page_objects[page_num]
-    current_page_instance = page_instance[page_num]
+    page_num = reactive(0)
+    current_page_object = MainGoalCollection
+    current_page_instance  = main_goal_page
 
 
     def compose(self) -> ComposeResult:
@@ -498,12 +514,9 @@ class JourneyApp(App):
 
 
     
-    @classmethod
-    def flip_page(cls):
-        if cls.page_num < len(cls.page_objects):
-            cls.page_num += 1
-            return
-        cls.page_num = 0
+    def watch_page_num(self):
+        self.current_page_object = self.page_objects[self.page_num]
+        self.current_page_instance = self.page_instance[self.page_num]
 
 
 
@@ -562,8 +575,14 @@ class JourneyApp(App):
         input_data = self.fetch_inputs(all_child_widgets)
         tier_data = self.fetch_tiers(all_child_widgets)
         text_area_data = self.fetch_text_area(all_child_widgets)
-        complete_data = {}
+        if self.current_page_object== MainGoalCollection:
+            id_prefix = "mg_"
+        elif self.current_page_object == SubGoalCollection:
+            id_prefix = "sg_"
+        else:
+            id_prefix = "tg_"
 
+        complete_data = {}
         if not self.final_input_validation(input_data): #make sure inputs are valid
             return False
 
@@ -582,13 +601,13 @@ class JourneyApp(App):
             return False
 
         for i in input_data:
-            input_name = str(i.id).removeprefix("mg_")
+            input_name = str(i.id).removeprefix(id_prefix)
             complete_data[input_name] = i.value
             
 
 
         for i in text_area_data:
-            text_area_name = str(i.id).removeprefix("mg_")
+            text_area_name = str(i.id).removeprefix(id_prefix)
             if i.text.strip() == "":
                 break
             else:
@@ -601,8 +620,8 @@ class JourneyApp(App):
         elif "sg" in str(input_data[0].id):
             self.query_one(GoalTree).insert_on_branch(complete_data['goal_input'], node_data=complete_data)
 
-        self.app.query_one("#mg_description", TextArea).text = str(complete_data)
-
+        #DEBUG 
+        self.app.query_one(f"#{id_prefix}description", TextArea).text = str(self.app.query_one(GoalTree).node_manager.get_node_dict)
 
 
 
@@ -669,6 +688,8 @@ class JourneyApp(App):
         await self.app.query(self.page_objects[(self.page_num % len(self.page_instance)) - 1]).remove() #remove current widget 
         await self.app.query_one("#screen").mount(next_page) # add next widget
 
+    async def action_testing_shit(self):
+        self.app.query_one("#sg_description_textbox", TextArea).text = str(self.current_page_object) + " " + str(self.page_num)
 
     async def action_previous_screen(self) -> None:
         if self.page_num >= 1:
