@@ -164,7 +164,7 @@ class GoalTree(VerticalGroup):
         else:
             return False
     
-    def insert_on_branch(self, sub_goal_label: str, task_goal_label: str|None, node_data: dict):
+    def insert_on_branch(self, sub_goal_label: str,node_data: dict, task_goal_label: str|None=None):
         if task_goal_label == None:
             main_goal = self.node_manager.last_added_node
             if isinstance(main_goal, TreeNode):
@@ -595,7 +595,12 @@ class JourneyApp(App):
                 complete_data[text_area_name] = i.text
 
         complete_data["tier"] = selected_tier #tier gets input last so it follows DOM order like everything else
-        self.query_one(GoalTree).insert_new_branch(complete_data['goal_input'], node_data=complete_data)
+        # a shitty way of checking which page is up to insert new branch or on branch need to change later to something more robust
+        if "mg" in str(input_data[0].id): 
+            self.query_one(GoalTree).insert_new_branch(complete_data['goal_input'], node_data=complete_data)
+        elif "sg" in str(input_data[0].id):
+            self.query_one(GoalTree).insert_on_branch(complete_data['goal_input'], node_data=complete_data)
+
         self.app.query_one("#mg_description", TextArea).text = str(complete_data)
 
 
