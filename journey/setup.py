@@ -1,4 +1,5 @@
 from ast import Tuple
+from ctypes import ArgumentError
 from dataclasses import dataclass, field
 from enum import Enum
 from logging import root
@@ -73,6 +74,8 @@ class TreeNodeManager():
             a = self.node_dict[main_node_label].get(sub_node_label)
             if isinstance(a,dict):
                 return a.get(task_node_label)
+
+
 
     def insert_node(self, main_node_label: str,node_type: GoalType, node: TreeNode,
                     sub_node_label: str|None=None, task_node_label: str|None=None) -> bool:
@@ -310,8 +313,7 @@ class MainGoalCollection(VerticalGroup):
         """ids prefixed with mg stands for Main Goal"""
         #TODO add tooltips to all of the inputs and description
         yield Center(Label(Text("Main Goal",style="bold underline"),id="mg_title_label"))
-        yield Input(placeholder="Goal Name", id="mg_goal_input", valid_empty=False,
-                    validate_on=['blur','changed'],
+        yield Input(placeholder="Goal Name", id="mg_goal_input",
                     validators=[Length(minimum=1, maximum=500, failure_description="Goal too short !")])
 
         yield Horizontal(Vertical(Input(placeholder="Start Date (optional)", id="mg_start_date",
@@ -319,17 +321,16 @@ class MainGoalCollection(VerticalGroup):
                                         validators=[DateValidator()],valid_empty=True),
 
                                   Input(placeholder="Due Date (Day/Month/Year or Month/Year )", id="mg_due_date",
-                                        validate_on=['changed'],
                                         validators=[DateValidator(),
                                                     DateRangeValidator()]),
 
                                   Input(placeholder="Difficulty (1-3) | 1 = Easy, 3 = Hard", id="mg_difficulty", 
-                                        type="number", validators=[Integer(minimum=1, maximum=3)], validate_on=["blur","submitted"]),
+                                        type="number", validators=[Integer(minimum=1, maximum=3)]),
                          id="mg_dates_dif_vertical",),
 
                          Vertical(RadioButton(label="Tier 1 (Mission critical Goal)", id="mg_t1", disabled=False),
                                   RadioButton(label="Tier 2 (High-Impact Goal)", id="mg_t2", disabled=False),
-                                  RadioButton(label="Tier 3 (Growth & Improvement)", id="mg_t3", disabled=False),
+                                  RadioButton(label="Tier 3 (Growth & Improvement)", id="mg_t3", disabled=False, tooltip="Not so important but good for growth"),
                          id="mg_tier_vertical"),
 
               id="mg_main_horizontal")
@@ -439,6 +440,9 @@ class DateValidator(Validator):
 
 class DateRangeValidator(Validator):
     def validate(self, value: str) -> ValidationResult:
+        start_date = app.query_one("#mg_start_date", Input).value
+        if start_date.strip() == "":
+            return self.success()
         if self.check_range(value):
             return self.success()
         return self.failure("Invalid date range, start date > due date !")
@@ -507,95 +511,64 @@ class JourneyApp(App):
     def action_add_goal_type(self):
         """this is only for adding main goals, sub goals and task
         are added throguh selected events handling"""
-        self.add_main_goal_action()
+        self.add_goal_action()
 
 
 
 
 
 
-
-    def final_input_validation(self, input_widgets: Tuple[Input,...]) -> bool:
+    def final_input_validation(self, input_widgets: list[Input]) -> bool:
         notification_box = self.query_one(Notification)
         for widget in input_widgets:
+            widget.validate(widget.value)
             if not widget.is_valid:
-                widget.focus
+                widget.focus()
                 notification_box.send_message(Text("Invalid input !"), level=NotificationLevel.ERROR)
                 return False
                 
         return True
 
     
-    def fetch_inputs(self, widgets: Widget, whole_object: bool=False, user_data: bool=True):
+    def fetch_inputs(self, widgets: Widget) -> list[Input]:
         """Gives back user data of Input widgets by default or whole input objects, WARNING 
            (you need to explicitly set user data to Flase IF you set whole_object to True
            or else this function will raise an exception)"""
         input_widgets = widgets.query(Input)
-        if user_data and whole_object:
-            raise Exception(f"ERROR ({self.fetch_inputs.__qualname__}) cannot fetch both whole_object and user data, just use query_one instead")
-        if user_data:
-            return [x.value for x in input_widgets]
-        if whole_object:
-            return [x for x in input_widgets]
+        return [x for x in input_widgets]
 
 
 
-    def fetch_tiers(self, widgets: Widget, whole_object: bool=False, user_data: bool=True):
+    def fetch_tiers(self, widgets: Widget) -> list[RadioButton]:
         """Gives back user data of Radio Button widgets by default or whole input objects, 
            WARNING (you need to explicitly set user data to Flase IF you set whole_object 
            to True or else this function will raise an exception)"""
         radio_button_widgets = widgets.query(RadioButton)
-        if user_data and whole_object:
-            raise Exception(f"ERROR ({self.fetch_tiers.__qualname__}) cannot  fetch both whole_object and user data, just use query_one instead")
-        if user_data:
-            return [x.value for x in radio_button_widgets]
-        if whole_object:
-            return [x for x in radio_button_widgets]
+        return [x for x in radio_button_widgets if x.value == True] # only return the tier radio button that is selected
 
 
-    def fetch_text_area(self, widgets: Widget, whole_object: bool=False, user_data: bool=True):
+    def fetch_text_area(self, widgets: Widget) ->  list[TextArea]:
         """Gives back user data of Text Area widgets by default or whole input objects, 
            WARNING (you need to explicitly set user data to Flase IF you set whole_object 
            to True or else this function will raise an exception)"""
         text_area_widgets = widgets.query(TextArea)
-        if user_data and whole_object:
-            raise Exception(f"ERROR ({self.fetch_text_area.__qualname__}) cannot fetch both whole_object and user data, just use query_one instead")
-        if user_data:
-            return [x.text for x in text_area_widgets]
-        if whole_object:
-            return [x for x in text_area_widgets]
+        return [x for x in text_area_widgets]
 
 
-
+    
 
     def add_goal_action(self):
-        all_child_widgets = self.app.query_one(self.current_page_object) # gets all of the widgets from current page 
+        all_child_widgets = self.app.query_one(self.current_page_object)# gets all of the widgets from current page 
+        input_data = self.fetch_inputs(all_child_widgets)
+        tier_data = self.fetch_tiers(all_child_widgets)
+        text_area_data = self.fetch_text_area(all_child_widgets)
+        complete_data = {}
 
-
-
-
-
-
-    def add_main_goal_action(self) -> bool:
-        """controls adding main goal to goal tree"""
-        goal_tree = self.app.query_one("#goal_tree", Tree)
-        goal_input_data = self.app.query_one("#mg_goal_input", Input)
-        start_date_input = self.app.query_one("#mg_start_date", Input)
-        due_date_input = self.app.query_one("#mg_due_date", Input)
-        difficulty_input = self.app.query_one("#mg_difficulty", Input)
-        description = self.app.query_one("#mg_description", TextArea)
-        tiers = [self.app.query_one("#mg_t1", RadioButton),
-                self.app.query_one("#mg_t2", RadioButton),
-                self.app.query_one("#mg_t3", RadioButton)]
-
-        unvalidated_input: Tuple[Input,...] = (goal_input_data, start_date_input, due_date_input,difficulty_input) 
-        if not self.final_input_validation(unvalidated_input):
+        if not self.final_input_validation(input_data): #make sure inputs are valid
             return False
 
-        #This validates the tier rodio buttons and 
-        #gets the value of the selected one as an int
         selected_tier = None
-        for tier  in tiers:
+        for tier  in tier_data:
             if tier.value == True:
                 selected_tier = tier.label
                 if "1" in str(selected_tier):
@@ -607,23 +580,80 @@ class JourneyApp(App):
         if selected_tier == None: 
             self.query_one(Notification).send_message(Text("Tier Not Selected !"),level=NotificationLevel.ERROR)
             return False
-                
-        node = goal_tree.root.add(goal_input_data.value, 
-                                       data={"start_date": start_date_input.value,
-                                             "due_date": due_date_input.value,
-                                             "difficulty": difficulty_input.value,
-                                             "tier": selected_tier,
-                                             "description": description.text
-                                             }
-                                       )
 
-        # self.query_one("#mg_description", TextArea).text = str(node.data)
-        return True
-
-        #NOTE could use node var to store in file just in case user exits or wants to finish later
-        #the whole node tree and ALL data will be saved and can be easily put back in the tree
+        for i in input_data:
+            input_name = str(i.id).removeprefix("mg_")
+            complete_data[input_name] = i.value
+            
 
 
+        for i in text_area_data:
+            text_area_name = str(i.id).removeprefix("mg_")
+            if i.text.strip() == "":
+                break
+            else:
+                complete_data[text_area_name] = i.text
+
+        complete_data["tier"] = selected_tier #tier gets input last so it follows DOM order like everything else
+        self.query_one(GoalTree).insert_new_branch(complete_data['goal_input'], node_data=complete_data)
+        self.app.query_one("#mg_description", TextArea).text = str(complete_data)
+
+
+
+
+
+    #
+    # def add_main_goal_action(self) -> bool:
+    #     """controls adding main goal to goal tree"""
+    #     # self.add_goal_action()
+    #     goal_tree = self.app.query_one("#goal_tree", Tree)
+    #     goal_input_data = self.app.query_one("#mg_goal_input", Input)
+    #     start_date_input = self.app.query_one("#mg_start_date", Input)
+    #     due_date_input = self.app.query_one("#mg_due_date", Input)
+    #     difficulty_input = self.app.query_one("#mg_difficulty", Input)
+    #     description = self.app.query_one("#mg_description", TextArea)
+    #     tiers = [self.app.query_one("#mg_t1", RadioButton),
+    #             self.app.query_one("#mg_t2", RadioButton),
+    #             self.app.query_one("#mg_t3", RadioButton)]
+    #
+    #
+    #         self.app.query_one("#mg_description", TextArea).text = "VALIDATION HAPPENED BUT FAILED"
+    #         return False
+    #     self.app.query_one("#mg_description", TextArea).text = "IT VALIDATED"
+    #
+    #     #This validates the tier rodio buttons and 
+    #     #gets the value of the selected one as an int
+    #     selected_tier = None
+    #     for tier  in tiers:
+    #         if tier.value == True:
+    #             selected_tier = tier.label
+    #             if "1" in str(selected_tier):
+    #                 selected_tier = 1
+    #             elif "2" in str(selected_tier):
+    #                 selected_tier = 2
+    #             else:
+    #                 selected_tier = 3
+    #     if selected_tier == None: 
+    #         self.query_one(Notification).send_message(Text("Tier Not Selected !"),level=NotificationLevel.ERROR)
+    #         return False
+    #
+    #     self.app.query_one("#mg_description", TextArea).text = str("FUCK MEEEEE")            
+    #     node = goal_tree.root.add(goal_input_data.value, 
+    #                                    data={"start_date": start_date_input.value,
+    #                                          "due_date": due_date_input.value,
+    #                                          "difficulty": difficulty_input.value,
+    #                                          "tier": selected_tier,
+    #                                          "description": description.text
+    #                                          }
+    #                                    )
+    #
+    #     # self.query_one("#mg_description", TextArea).text = str(node.data)
+    #     return True
+    #
+    #     #NOTE could use node var to store in file just in case user exits or wants to finish later
+    #     #the whole node tree and ALL data will be saved and can be easily put back in the tree
+    #
+    #
     def run_validation_check(self):
         ...
 
