@@ -33,9 +33,9 @@ class GoalType(Enum):
 
 @dataclass()
 class TreeNodeManager():
-    last_added_main_node: TreeNode|None=None
-    last_added_sub_node: TreeNode|None=None
-    last_added_task_node: TreeNode|None=None
+    last_added_main_node: Tuple[TreeNode,str]|None=None
+    last_added_sub_node: Tuple[TreeNode,str]|None=None
+    last_added_task_node: Tuple[TreeNode,str]|None=None
     last_added_node: TreeNode|None = None 
     last_added_node_type: GoalType|None=None
     node_dict: Dict[str,MainGoalLayer] = field(default_factory=dict) #keys are goal names: values is data associated to node
@@ -85,37 +85,23 @@ class TreeNodeManager():
 
     def insert_new_node(self, main_node_label: str,node_type: GoalType, node: TreeNode,
                     sub_node_label: str|None=None, task_node_label: str|None=None) -> bool:
-        """insert a node into the node dict"""
+        """insert a node into the node dict and set last added node and its type"""
         try:
             if node_type == GoalType.MAIN_GOAL:
-                    self.node_dict[main_node_label] = {"node": node}  
+                self.node_dict[main_node_label] = {"node": node}  
+                self.last_added_main_node = (node, main_node_label)
             elif node_type == GoalType.SUB_GOAL and sub_node_label != None and task_node_label != None:
-                    self.node_dict[main_node_label][sub_node_label] = {"node":node}
+                self.node_dict[main_node_label][sub_node_label] = {"node":node}
+                self.last_added_sub_node = (node, sub_node_label)
             elif sub_node_label != None and task_node_label != None:
-                    self.node_dict[main_node_label][sub_node_label][task_node_label] = {"node":node}
+                self.node_dict[main_node_label][sub_node_label][task_node_label] = {"node":node}
+                self.last_added_task_node = (node,task_node_label)
             self.last_added_node_type = node_type
             self.last_added_node = node
-            self.last_added_main_node = node
             return True
         except Exception as e:
             #TODO log err
             return False
-
-
-    def insert_node_on_last(self, node: TreeNode, node_type: GoalType):
-        if node_type == GoalType.SUB_GOAL and (self.last_added_sub_node != None and
-                                               self.last_added_main_node != None):
-            
-            #PROCEED
-
-
-
-
-        
-        
-         
-
-
 
 
     def update_node_data(self, node_data: Any, node_type: GoalType, main_node_label: str,
@@ -158,6 +144,37 @@ class TreeNodeManager():
             
 
 
+
+
+    
+
+
+class GoalTree2(Tree):
+    def __init__(self, label: str):
+        super().__init__(label)
+        # the data in these tuples are the name of the node and the integer of the NodeID
+        self.tree_root: Tree = Tree(Text("Goals", style="bold underline"), id="goal_tree")
+        self.last_added_main_node: tuple[str,int] 
+        self.last_added_sub_node: tuple[str,int]
+        self.last_added_task_node: tuple[str,int]
+        self.last_added_node: tuple[str,int]
+        self.last_added_node_type: GoalType|None=None
+        self.node_dict: dict[str,dict[str,int]]
+        self.node_manager = TreeNodeManager()
+
+
+    def add(self, main_goal_label: str, data: Dict, node_type: GoalType,parent_node: TreeNode,
+            sub_goal_label: str|None=None, task_node_label: str|None=None):
+        if node_type == GoalType.MAIN_GOAL:
+            self.last_added_main_node
+            return_val = parent_node.add(label=main_goal_label, data=data)
+        elif node_type == GoalType.SUB_GOAL and sub_goal_label != None:
+            return_val = super().root.add(label=sub_goal_label, data=data)
+        elif node_type == GoalType.TASK_GOAL and task_node_label != None:
+            return_val = super().root.add(label=task_node_label, data=data)
+            
+        
+        ...
 
 
 class GoalTree(VerticalGroup):
