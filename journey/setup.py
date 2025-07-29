@@ -33,9 +33,9 @@ class GoalType(Enum):
 
 @dataclass()
 class TreeNodeManager():
-    last_added_main_node: Tuple[TreeNode,str]|None=None
-    last_added_sub_node: Tuple[TreeNode,str]|None=None
-    last_added_task_node: Tuple[TreeNode,str]|None=None
+    last_added_main_node: TreeNode|None=None
+    last_added_sub_node: TreeNode|None=None
+    last_added_task_node: TreeNode|None=None
     last_added_node: TreeNode|None = None 
     last_added_node_type: GoalType|None=None
     node_dict: Dict[str,MainGoalLayer] = field(default_factory=dict) #keys are goal names: values is data associated to node
@@ -89,13 +89,13 @@ class TreeNodeManager():
         try:
             if node_type == GoalType.MAIN_GOAL:
                 self.node_dict[main_node_label] = {"node": node}  
-                self.last_added_main_node = (node, main_node_label)
-            elif node_type == GoalType.SUB_GOAL and sub_node_label != None and task_node_label != None:
+                self.last_added_main_node = node
+            elif node_type == GoalType.SUB_GOAL and sub_node_label != None: 
                 self.node_dict[main_node_label][sub_node_label] = {"node":node}
-                self.last_added_sub_node = (node, sub_node_label)
+                self.last_added_sub_node = node
             elif sub_node_label != None and task_node_label != None:
                 self.node_dict[main_node_label][sub_node_label][task_node_label] = {"node":node}
-                self.last_added_task_node = (node,task_node_label)
+                self.last_added_task_node = node
             self.last_added_node_type = node_type
             self.last_added_node = node
             return True
@@ -149,32 +149,6 @@ class TreeNodeManager():
     
 
 
-class GoalTree2(Tree):
-    def __init__(self, label: str):
-        super().__init__(label)
-        # the data in these tuples are the name of the node and the integer of the NodeID
-        self.tree_root: Tree = Tree(Text("Goals", style="bold underline"), id="goal_tree")
-        self.last_added_main_node: tuple[str,int] 
-        self.last_added_sub_node: tuple[str,int]
-        self.last_added_task_node: tuple[str,int]
-        self.last_added_node: tuple[str,int]
-        self.last_added_node_type: GoalType|None=None
-        self.node_dict: dict[str,dict[str,int]]
-        self.node_manager = TreeNodeManager()
-
-
-    def add(self, main_goal_label: str, data: Dict, node_type: GoalType,parent_node: TreeNode,
-            sub_goal_label: str|None=None, task_node_label: str|None=None):
-        if node_type == GoalType.MAIN_GOAL:
-            self.last_added_main_node
-            return_val = parent_node.add(label=main_goal_label, data=data)
-        elif node_type == GoalType.SUB_GOAL and sub_goal_label != None:
-            return_val = super().root.add(label=sub_goal_label, data=data)
-        elif node_type == GoalType.TASK_GOAL and task_node_label != None:
-            return_val = super().root.add(label=task_node_label, data=data)
-            
-        
-        ...
 
 
 class GoalTree(VerticalGroup):
@@ -195,11 +169,24 @@ class GoalTree(VerticalGroup):
         else:
             return False
     
-    def insert_on_branch(self, sub_goal_label: str,node_data: dict, task_goal_label: str|None=None):
-        if task_goal_label == None:
-            last_goal = self.node_manager.last_added_node
+    def insert_on_last_branch(self, sub_node_label: str,node_data: dict, task_node_label: str|None=None) -> bool:
+        if task_node_label == None:
+            last_goal = self.node_manager.last_added_main_node
             if isinstance(last_goal, TreeNode):
-                last_goal.add(label=sub_goal_label, data=node_data)
+                node = last_goal.add(label=sub_node_label, data=node_data)
+                self.node_manager.set_last_added_node(main_node_label=str(last_goal.label),sub_node_label=sub_node_label
+                                                      ,node=node,node_type=GoalType.SUB_GOAL)
+                return True
+        elif task_node_label != None and sub_node_label != None:
+            last_goal = self.node_manager.last_added_sub_node
+            if isinstance(last_goal,TreeNode):
+                node = last_goal.add_leaf(task_node_label,node_data)
+                self.node_manager.set_last_added_node(main_node_label=str(last_goal.label), sub_node_label=sub_node_label,
+                                                      task_node_label=task_node_label
+                                                      ,node=node,node_type=GoalType.TASK_GOAL)
+                return True
+        return False
+
 
     def get_last_added_node(self):
         return self.node_manager.last_added_node
@@ -622,6 +609,7 @@ class JourneyApp(App):
             complete_data[input_name] = i.value
             
 
+        complete_data["tier"] = selected_tier #tier gets added after input so it follows DOM order like everything else
 
         for i in text_area_data:
             text_area_name = str(i.id).removeprefix(id_prefix)
@@ -630,15 +618,15 @@ class JourneyApp(App):
             else:
                 complete_data[text_area_name] = i.text
 
-        complete_data["tier"] = selected_tier #tier gets input last so it follows DOM order like everything else
         # a shitty way of checking which page is up to insert new branch or on branch need to change later to something more robust
         if "mg" in str(input_data[0].id): 
             self.query_one(GoalTree).insert_new_branch(complete_data['goal_input'], node_data=complete_data)
+            self.app.query_one(f"#{id_prefix}description", TextArea).text = str(self.app.query_one(GoalTree).node_manager.last_added_node)
         elif "sg" in str(input_data[0].id):
-            self.query_one(GoalTree).insert_on_branch(complete_data['goal_input'], node_data=complete_data)
+            self.query_one(GoalTree).insert_on_last_branch(complete_data['goal_input'], node_data=complete_data)
+            self.app.query_one(f"#{id_prefix}description", TextArea).text = str(self.app.query_one(GoalTree).node_manager.last_added_sub_node)
 
-        #DEBUG 
-        self.app.query_one(f"#{id_prefix}description", TextArea).text = str(self.app.query_one(GoalTree).node_manager.get_node_dict)
+        #DEBUG
 
 
 
