@@ -12,7 +12,7 @@ from textual.containers import Center, Horizontal, Vertical, VerticalGroup
 from textual.reactive import reactive
 from textual.validation import Integer, Length, ValidationResult, Validator
 from textual.widget import Widget
-from textual.widgets import Footer, Header, Input , Label,  RadioButton,  Static, TextArea, Tree, Label
+from textual.widgets import Button, Footer, Header, Input , Label,  RadioButton,  Static, TextArea, Tree, Label
 from rich.text import Text
 from textual.widgets._tree import TreeNode
 from typing import Any,Tuple,  Dict, List,  TypedDict
@@ -396,7 +396,7 @@ class SubGoalCollection(VerticalGroup):
     the maing goal is complete"""
     subgoal_question = "What potential challenges do you foresee for this subgoal, and what's your plan to overcome them ? (optional)"
     def compose(self) -> ComposeResult:
-        yield Center(Label(Text("",style="bold underline"),id="sg_title_label"))
+        # yield Center(Label(Text(f"{self.app.query_one(GoalTree).node_manager.last_added_main_node.label}",style="bold underline"),id="sg_title_label"))
         yield Input(placeholder="Goal Name", id="sg_goal_input", valid_empty=False,
                     validate_on=['blur','changed'],
                     validators=[Length(minimum=1, maximum=500, failure_description="Goal too short !")])
@@ -430,8 +430,27 @@ class SubGoalCollection(VerticalGroup):
         yield Notification(static_id="sg_notification_static")
  
 
+class TaskGoalCollection(VerticalGroup):
+    """collect tasks from users which are 3rd and last in the hierarchy
+    of goals in Journey."""
 
+
+    def compose(self) -> ComposeResult:
+        yield Center(Label(Text("Put subgoal name here", style="bold red"),id="tg_page_title"))
+        yield Vertical(
+                Input(placeholder="Task Name", id="tg_goal_input"),
+                Button("One Time Thing", id="tg_one_and_done"),
+                Horizontal(
+                    Button("Daily"), Button("Weekly"),Button("Monthly"),Button("Quaterly")
+                    ),
+                Horizontal(RadioButton(label="Tier 1 (Mission critical Goal)", id="tg_t1", disabled=False),
+                         RadioButton(label="Tier 2 (High-Impact Goal)", id="tg_t2", disabled=False),
+                         RadioButton(label="Tier 3 (Growth & Improvement)", id="tg_t3", disabled=False),
+                ),
+                Input(placeholder="Difficulty (1-3) | 1 = Easy, 3 = Hard", id="tg_difficulty", 
+                      type="number", validators=[Integer(minimum=1, maximum=3)], validate_on=["blur","submitted"]),
     
+                )
 
 
 
@@ -492,16 +511,17 @@ class JourneyApp(App):
 
     BINDINGS = [("ctrl+n", "next_screen", "Go next " ),
                 ("ctrl+b", "previous_screen", "Go back"),
-                Binding("ctrl+a", "add_goal_type", "Add Goal", priority=True),
-                ("ctrl+f", "testing_shit", "testing shit")] 
+                Binding("ctrl+a", "add_goal_type", "Add Goal", priority=True)
+                ]
 
     CSS_PATH = "styling.tcss"
 
     goal_tree_cls = GoalTree()
     main_goal_page = MainGoalCollection(id="main_goal_page")
     sub_goal_page = SubGoalCollection(id="sub_goal_page")
-    page_objects = [MainGoalCollection, SubGoalCollection]
-    page_instance = [main_goal_page, sub_goal_page]
+    task_goal_page = TaskGoalCollection(id='task_goal_page')
+    page_objects = [MainGoalCollection, SubGoalCollection, TaskGoalCollection]
+    page_instance = [main_goal_page, sub_goal_page, task_goal_page]
     page_num = reactive(0)
     current_page_object = MainGoalCollection
     current_page_instance  = main_goal_page
@@ -519,8 +539,11 @@ class JourneyApp(App):
 
     
     def watch_page_num(self):
-        self.current_page_object = self.page_objects[self.page_num]
-        self.current_page_instance = self.page_instance[self.page_num]
+        try:
+            self.current_page_object = self.page_objects[self.page_num]
+            self.current_page_instance = self.page_instance[self.page_num]
+        except Exception:
+            self.app.query_one("#tg_input", Input).placeholder =  str(len(self.page_objects))
 
 
 
@@ -621,80 +644,25 @@ class JourneyApp(App):
         # a shitty way of checking which page is up to insert new branch or on branch need to change later to something more robust
         if "mg" in str(input_data[0].id): 
             self.query_one(GoalTree).insert_new_branch(complete_data['goal_input'], node_data=complete_data)
-            self.app.query_one(f"#{id_prefix}description", TextArea).text = str(self.app.query_one(GoalTree).node_manager.last_added_node)
+        #DEBUG
+            # self.app.query_one(f"#{id_prefix}description", TextArea).text = str(self.app.query_one(GoalTree).node_manager.last_added_node)
         elif "sg" in str(input_data[0].id):
             self.query_one(GoalTree).insert_on_last_branch(complete_data['goal_input'], node_data=complete_data)
-            self.app.query_one(f"#{id_prefix}description", TextArea).text = str(self.app.query_one(GoalTree).node_manager.last_added_sub_node)
-
         #DEBUG
+            # self.app.query_one(f"#{id_prefix}description", TextArea).text = str(self.app.query_one(GoalTree).node_manager.last_added_sub_node)
 
-
-
-
-    #
-    # def add_main_goal_action(self) -> bool:
-    #     """controls adding main goal to goal tree"""
-    #     # self.add_goal_action()
-    #     goal_tree = self.app.query_one("#goal_tree", Tree)
-    #     goal_input_data = self.app.query_one("#mg_goal_input", Input)
-    #     start_date_input = self.app.query_one("#mg_start_date", Input)
-    #     due_date_input = self.app.query_one("#mg_due_date", Input)
-    #     difficulty_input = self.app.query_one("#mg_difficulty", Input)
-    #     description = self.app.query_one("#mg_description", TextArea)
-    #     tiers = [self.app.query_one("#mg_t1", RadioButton),
-    #             self.app.query_one("#mg_t2", RadioButton),
-    #             self.app.query_one("#mg_t3", RadioButton)]
-    #
-    #
-    #         self.app.query_one("#mg_description", TextArea).text = "VALIDATION HAPPENED BUT FAILED"
-    #         return False
-    #     self.app.query_one("#mg_description", TextArea).text = "IT VALIDATED"
-    #
-    #     #This validates the tier rodio buttons and 
-    #     #gets the value of the selected one as an int
-    #     selected_tier = None
-    #     for tier  in tiers:
-    #         if tier.value == True:
-    #             selected_tier = tier.label
-    #             if "1" in str(selected_tier):
-    #                 selected_tier = 1
-    #             elif "2" in str(selected_tier):
-    #                 selected_tier = 2
-    #             else:
-    #                 selected_tier = 3
-    #     if selected_tier == None: 
-    #         self.query_one(Notification).send_message(Text("Tier Not Selected !"),level=NotificationLevel.ERROR)
-    #         return False
-    #
-    #     self.app.query_one("#mg_description", TextArea).text = str("FUCK MEEEEE")            
-    #     node = goal_tree.root.add(goal_input_data.value, 
-    #                                    data={"start_date": start_date_input.value,
-    #                                          "due_date": due_date_input.value,
-    #                                          "difficulty": difficulty_input.value,
-    #                                          "tier": selected_tier,
-    #                                          "description": description.text
-    #                                          }
-    #                                    )
-    #
-    #     # self.query_one("#mg_description", TextArea).text = str(node.data)
-    #     return True
-    #
-    #     #NOTE could use node var to store in file just in case user exits or wants to finish later
-    #     #the whole node tree and ALL data will be saved and can be easily put back in the tree
-    #
-    #
-    def run_validation_check(self):
-        ...
 
     async def action_next_screen(self):
         """moves user to the next phase of the goal inputing phase"""
-        self.page_num += 1
+        if self.page_num < len(self.page_instance) - 1: 
+            self.page_num += 1
+        else:
+            self.page_num = 0
         next_page = self.page_instance[self.page_num % len(self.page_instance)]
         await self.app.query(self.page_objects[(self.page_num % len(self.page_instance)) - 1]).remove() #remove current widget 
         await self.app.query_one("#screen").mount(next_page) # add next widget
 
-    async def action_testing_shit(self):
-        self.app.query_one("#sg_description_textbox", TextArea).text = str(self.current_page_object) + " " + str(self.page_num)
+
 
     async def action_previous_screen(self) -> None:
         if self.page_num >= 1:
