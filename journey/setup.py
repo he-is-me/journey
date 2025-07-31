@@ -1,4 +1,5 @@
 from ast import Tuple
+import calendar
 from ctypes import ArgumentError
 from dataclasses import dataclass, field
 from enum import Enum
@@ -187,20 +188,6 @@ class GoalTree(VerticalGroup):
                 return True
         return False
 
-
-    def get_last_added_node(self):
-        return self.node_manager.last_added_node
-
-
-    def on_tree_node_selected(self, event: Tree.NodeSelected):
-        ...
-
-
-    def update_node_manager(self):
-        self.app.query_one("#mg_description", TextArea).text = "RUNNING REACTIVE UPDATE !"
-        ...
-
-    
 
     def insert_new_goal(self, tree_root: Tree[str], goal_name: str) -> Tree:
         tree_root.root.add(goal_name)
@@ -433,25 +420,98 @@ class SubGoalCollection(VerticalGroup):
 class TaskGoalCollection(VerticalGroup):
     """collect tasks from users which are 3rd and last in the hierarchy
     of goals in Journey."""
+    def __init__(self, id: str):
+        super().__init__(id=id)
+        self.currently_mounted_widget = None
+        self.currently_selected_widget = None
 
+    @on(Button.Pressed, """#tg_one_time_thing_btn,
+                           #tg_daily_btn,
+                           #tg_weekly_btn,
+                           #tg_monthly_btn,
+                           #tg_quaterly_btn""")
+    def pressed_frequency(self, event: Button.Pressed):
+        if self.currently_mounted_widget != None:
+            self.query_one("tainer").remove()
+
+        if "one_time" in str(event.button.id):
+            self.currently_selected_widget = "one_time"
+
+        elif "daily" in str(event.button.id):
+            self.currently_selected_widget = "daily"
+
+        elif "weekly" in str(event.button.id):
+            widget = WeeklyDaySelector()
+            self.query_one("#tg_vertical_container", Vertical).mount(widget)
+            self.currently_mounted_widget = widget
+            self.currently_selected_widget = 'weekly'
+
+        elif "monthly" in str(event.button.id):
+            widget = MonthlyDateSelector()
+            self.query_one("#tg_vertical_container", Vertical).mount(widget)
+            self.currently_mounted_widget = widget
+            self.currently_selected_widget = 'monthly'
+
+        elif "quaterly" in str(event.button.id):
+            widget = WeeklyDaySelector()
+            self.query_one("#tg_vertical_container", Vertical).mount(widget)
+            self.currently_mounted_widget = widget
+            self.currently_selected_widget = 'quaterly'
+            
 
     def compose(self) -> ComposeResult:
         yield Center(Label(Text("Put subgoal name here", style="bold red"),id="tg_page_title"))
-        yield Vertical(
-                Input(placeholder="Task Name", id="tg_goal_input"),
-                Button("One Time Thing", id="tg_one_and_done"),
-                Horizontal(
-                    Button("Daily"), Button("Weekly"),Button("Monthly"),Button("Quaterly")
-                    ),
-                Horizontal(RadioButton(label="Tier 1 (Mission critical Goal)", id="tg_t1", disabled=False),
-                         RadioButton(label="Tier 2 (High-Impact Goal)", id="tg_t2", disabled=False),
-                         RadioButton(label="Tier 3 (Growth & Improvement)", id="tg_t3", disabled=False),
-                ),
-                Input(placeholder="Difficulty (1-3) | 1 = Easy, 3 = Hard", id="tg_difficulty", 
-                      type="number", validators=[Integer(minimum=1, maximum=3)], validate_on=["blur","submitted"]),
-    
-                )
+        yield Vertical(Input(placeholder="Task Name", id="tg_goal_input"),
+              Center(Label(Text("Put subgoal name here", style="bold red"),id="tg_page_title")),
+                       Horizontal(Button("One Time Thing", id="tg_one_time_thing_btn"),
+                                  Button("Daily", id="tg_daily_btn"),
+                                  Button("Weekly", id="tg_weekly_btn"),
+                                  Button("Monthly", id="tg_monthly_btn"),
+                                  Button("Quaterly", id="tg_quaterly_btn"),
+                                  id="tg_frequency_horizontal_container"),
 
+            Horizontal(
+                       Input(placeholder="Difficulty (1-3) | 1 = Easy, 3 = Hard", id="tg_difficulty", 
+                             type="number",
+                             validators=[Integer(minimum=1, maximum=3)],
+                             validate_on=["blur","submitted"]),
+
+                       Input(placeholder="Due Date (Day/Month/Year or Month/Year )", id="tg_due_date",
+                             validate_on=['changed'],
+                             validators=[DateValidator()]),
+                       id="tg_difficulty_date_horizontal"),
+                       id="tg_vertical_container")
+
+class WeeklyDaySelector(Widget):
+
+    def compose(self) -> ComposeResult:
+        yield Horizontal(
+                Button("Monday", id="wk_monday"),
+                Button("Tuesday", id="wk_tueday"),
+                Button("Wednesday", id="wk_wednesday"),
+                Button("Thursday", id="wk_thursday"),
+                Button("Friday", id="wk_friday"),
+                Button("Saturday", id="wk_saturday"),
+                Button("Sunday", id="wk_sunday")
+                ) 
+        yield Button("Confirm", id='wk_confirm')
+
+
+class MonthlyDateSelector(Widget):
+
+    def compose(self) -> ComposeResult:
+        buttons: list[Button] = []
+        for month in calendar.month_name:
+            if month.strip() != "":
+                buttons.append(Button(month[:3], id=f"month_{str(month[:3]).lower()}"))
+
+        # this is ghetto asf but I just want the ids to not be capitals
+        yield Horizontal(Vertical(*buttons[0:3], id=f"month_{str(buttons[0].label).lower()}_to_{str(buttons[2].label).lower()}"), #id=month_jan_to_mar
+                        Vertical(*buttons[3:6], id=f"month_{str(buttons[3].label).lower()}_to_{str(buttons[5].label).lower()}"),#id=month_apr_to_jun
+                        Vertical(*buttons[6:9],id=f"month_{str(buttons[6].label).lower()}_to_{str(buttons[8].label).lower()}"),#id=month_jul_to_sep
+                        Vertical(*buttons[9:12],id=f"month_{str(buttons[9].label).lower()}_to_{str(buttons[11].label).lower()}"),#id=month_oct_to_dec
+                        id="month_buttons_horizontal")
+            
 
 
 
