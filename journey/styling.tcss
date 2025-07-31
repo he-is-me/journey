@@ -167,7 +167,7 @@ SubGoalCollection{
 }
 
 #tg_frequency_horizontal_container{
-  margin: 1 4;
+  align: center middle;
   height: auto;
 }
 
@@ -207,6 +207,7 @@ SubGoalCollection{
 /*######## end ########*/
 
 
+/*######## MonthlyDateSelector styles ########*/
 #month_jan{
   margin: 1 0;
 }
@@ -244,11 +245,10 @@ SubGoalCollection{
 	margin: 1 0;
 }
 
-/*######## MonthlyDateSelector styles ########*/
 #month_buttons_horizontal{
   border: round white;
   height: auto;
-  margin: 2 2;
+  align: center middle;
 }
 #month_jan_to_mar{
   height: auto;
@@ -275,3 +275,6 @@ SubGoalCollection{
   margin: 0 1;
 }
 
+.center_align{
+  align: center middle;
+}

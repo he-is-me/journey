@@ -447,13 +447,14 @@ class TaskGoalCollection(VerticalGroup):
             self.currently_selected_widget = 'weekly'
 
         elif "monthly" in str(event.button.id):
-            widget = MonthlyDateSelector()
+            widget = MonthlyDateSelector(id="tg_monthly_widget")
             self.query_one("#tg_vertical_container", Vertical).mount(widget)
             self.currently_mounted_widget = widget
             self.currently_selected_widget = 'monthly'
 
         elif "quaterly" in str(event.button.id):
-            widget = WeeklyDaySelector()
+            widget = MonthlyDateSelector(id="tg_quaterly_widget",
+                                         quaterly=True)
             self.query_one("#tg_vertical_container", Vertical).mount(widget)
             self.currently_mounted_widget = widget
             self.currently_selected_widget = 'quaterly'
@@ -498,19 +499,45 @@ class WeeklyDaySelector(Widget):
 
 
 class MonthlyDateSelector(Widget):
+    def __init__(self,id: str, quaterly: bool=False):
+        super().__init__(id=id)
+        self.quaterly = quaterly
 
-    def compose(self) -> ComposeResult:
+    def monthly_widget(self):
+
         buttons: list[Button] = []
         for month in calendar.month_name:
             if month.strip() != "":
                 buttons.append(Button(month[:3], id=f"month_{str(month[:3]).lower()}"))
 
         # this is ghetto asf but I just want the ids to not be capitals
-        yield Horizontal(Vertical(*buttons[0:3], id=f"month_{str(buttons[0].label).lower()}_to_{str(buttons[2].label).lower()}"), #id=month_jan_to_mar
+        return Horizontal(Vertical(*buttons[0:3], id=f"month_{str(buttons[0].label).lower()}_to_{str(buttons[2].label).lower()}"), #id=month_jan_to_mar
                         Vertical(*buttons[3:6], id=f"month_{str(buttons[3].label).lower()}_to_{str(buttons[5].label).lower()}"),#id=month_apr_to_jun
                         Vertical(*buttons[6:9],id=f"month_{str(buttons[6].label).lower()}_to_{str(buttons[8].label).lower()}"),#id=month_jul_to_sep
                         Vertical(*buttons[9:12],id=f"month_{str(buttons[9].label).lower()}_to_{str(buttons[11].label).lower()}"),#id=month_oct_to_dec
                         id="month_buttons_horizontal")
+            
+
+    def quaterly_widget(self):
+        labels: list[Label] = []
+        for month in calendar.month_name:
+            if month.strip() != "":
+                labels.append(Label(month[:3], id=f"month_{str(month[:3]).lower()}"))
+
+        # this is ghetto asf but I just want the ids to not be capitals
+        return Horizontal(Vertical(Button("Q1"),*labels[0:3], id=f"month_{str(labels[0]._content).lower()}_to_{str(labels[2]._content).lower()}", classes="align-center"), #id=month_jan_to_mar
+                        Vertical(Button("Q1"),*labels[3:6], id=f"month_{str(labels[3]._content).lower()}_to_{str(labels[5]._content).lower()}"),#id=month_apr_to_jun
+                        Vertical(Button("Q1"),*labels[6:9],id=f"month_{str(labels[6]._content).lower()}_to_{str(labels[8]._content).lower()}"),#id=month_jul_to_sep
+                        Vertical(Button("Q1"),*labels[9:12],id=f"month_{str(labels[9]._content).lower()}_to_{str(labels[11]._content).lower()}"),#id=month_oct_to_dec
+                        id="month_labels_horizontal")
+            
+
+    
+    def compose(self) -> ComposeResult:
+        if not self.quaterly:
+            yield self.monthly_widget()
+        else:
+            yield self.quaterly_widget()
             
 
 
