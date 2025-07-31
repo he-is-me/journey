@@ -331,7 +331,7 @@ class MainGoalCollection(VerticalGroup):
 
                                   Input(placeholder="Difficulty (1-3) | 1 = Easy, 3 = Hard", id="mg_difficulty", 
                                         type="number", validators=[Integer(minimum=1, maximum=3)]),
-                         id="mg_dates_dif_vertical",),
+                                  id="mg_dates_dif_vertical",),
 
                          Vertical(RadioButton(label="Tier 1 (Mission critical Goal)", id="mg_t1", disabled=False),
                                   RadioButton(label="Tier 2 (High-Impact Goal)", id="mg_t2", disabled=False),
@@ -432,7 +432,7 @@ class TaskGoalCollection(VerticalGroup):
                            #tg_quaterly_btn""")
     def pressed_frequency(self, event: Button.Pressed):
         if self.currently_mounted_widget != None:
-            self.query_one("tainer").remove()
+            self.currently_mounted_widget.remove()
 
         if "one_time" in str(event.button.id):
             self.currently_selected_widget = "one_time"
