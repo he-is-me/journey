@@ -204,6 +204,12 @@ SubGoalCollection{
   margin: 1 4;
   width: 1fr;
 }
+#tg_notification_static{
+  height: auto;
+  width: auto;
+  align: center middle;
+  border: round yellow;
+}
 /*######## end ########*/
 
 
@@ -246,7 +252,10 @@ SubGoalCollection{
 }
 
 #month_buttons_horizontal{
-  border: round white;
+  height: auto;
+  align: center middle;
+}
+#quaterly_statics_horizontal{
   height: auto;
   align: center middle;
 }
@@ -276,5 +285,5 @@ SubGoalCollection{
 }
 
 .center_align{
-  align: center middle;
+  text-align: center;
 }
