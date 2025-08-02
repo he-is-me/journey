@@ -206,7 +206,7 @@ class NotificationLevel(Enum):
     WARNING = "bold yellow"
     ERROR = "bold red underline"
 
-class Notification(Widget):
+class Notification(VerticalGroup):
     def __init__(self, label_id: str="notification_label", static_id: str="notification_static", content_text: str=""):
         super().__init__()
         self.noti_label: Label = Label(id=label_id)
@@ -425,37 +425,58 @@ class TaskGoalCollection(VerticalGroup):
         self.currently_mounted_widget = None
         self.currently_selected_widget = None
 
+
+
     @on(Button.Pressed, """#tg_one_time_thing_btn,
                            #tg_daily_btn,
                            #tg_weekly_btn,
                            #tg_monthly_btn,
                            #tg_quaterly_btn""")
-    def pressed_frequency(self, event: Button.Pressed):
+    async def pressed_frequency(self, event: Button.Pressed):
+        #TODO put all logic under checks in 1 or 2 function calls to clean this shit up !
+        event_id = str(event.button.id)
         if self.currently_mounted_widget != None:
-            self.currently_mounted_widget.remove()
+            await self.currently_mounted_widget.remove()
 
-        if "one_time" in str(event.button.id):
+        if "one_time" in event_id:
             self.currently_selected_widget = "one_time"
+            if self.currently_mounted_widget != None:
+                container = self.query_one("#tg_temp_widget_container", Vertical)
+                container.styles.width = "0"
+                container.styles.height = "0"
 
-        elif "daily" in str(event.button.id):
+        elif "daily" in event_id:
             self.currently_selected_widget = "daily"
+            if self.currently_mounted_widget != None:
+                container = self.query_one("#tg_temp_widget_container", Vertical)
+                container.styles.width = "0"
+                container.styles.height = "0"
 
-        elif "weekly" in str(event.button.id):
+        elif "weekly" in event_id:
             widget = WeeklyDaySelector()
-            self.query_one("#tg_vertical_container", Vertical).mount(widget)
+            container = self.query_one("#tg_temp_widget_container", Vertical)
+            await container.mount(widget)
+            container.styles.width = "100%"
+            container.styles.height = '15%'
             self.currently_mounted_widget = widget
-            self.currently_selected_widget = 'weekly'
-
-        elif "monthly" in str(event.button.id):
+            self.currently_selected_widget = 'quaterly'
+            
+        elif "monthly" in event_id:
             widget = MonthlyDateSelector(id="tg_monthly_widget")
-            self.query_one("#tg_vertical_container", Vertical).mount(widget)
+            container = self.query_one("#tg_temp_widget_container", Vertical)
+            await container.mount(widget)
+            container.styles.width = "100%"
+            container.styles.height = '30%'
             self.currently_mounted_widget = widget
-            self.currently_selected_widget = 'monthly'
-
-        elif "quaterly" in str(event.button.id):
+            self.currently_selected_widget = 'quaterly'
+            
+        elif "quaterly" in event_id:
             widget = MonthlyDateSelector(id="tg_quaterly_widget",
                                          quaterly=True)
-            self.query_one("#tg_vertical_container", Vertical).mount(widget)
+            container = self.query_one("#tg_temp_widget_container", Vertical)
+            await container.mount(widget)
+            container.styles.width = "100%"
+            container.styles.height = '30%'
             self.currently_mounted_widget = widget
             self.currently_selected_widget = 'quaterly'
             
@@ -463,40 +484,40 @@ class TaskGoalCollection(VerticalGroup):
     def compose(self) -> ComposeResult:
         yield Center(Label(Text("Put subgoal name here", style="bold red"),id="tg_page_title"))
         yield Vertical(Input(placeholder="Task Name", id="tg_goal_input"),
-              Center(Label(Text("Put subgoal name here", style="bold red"),id="tg_page_title")),
+                       Center(Label(Text("How frequently will you need to complete this task",
+                                style="bold red"),id="tg_page_title")),
+
                        Horizontal(Button("One Time Thing", id="tg_one_time_thing_btn"),
                                   Button("Daily", id="tg_daily_btn"),
                                   Button("Weekly", id="tg_weekly_btn"),
                                   Button("Monthly", id="tg_monthly_btn"),
                                   Button("Quaterly", id="tg_quaterly_btn"),
                                   id="tg_frequency_horizontal_container"),
-
-            Horizontal(
+              Horizontal(
                        Input(placeholder="Difficulty (1-3) | 1 = Easy, 3 = Hard", id="tg_difficulty", 
                              type="number",
                              validators=[Integer(minimum=1, maximum=3)],
                              validate_on=["blur","submitted"]),
-
                        Input(placeholder="Due Date (Day/Month/Year or Month/Year )", id="tg_due_date",
                              validate_on=['changed'],
                              validators=[DateValidator()]),
                        id="tg_difficulty_date_horizontal"),
-            Notification(static_id="tg_notification_static"),
-                       id="tg_vertical_container")
+        Vertical(id="tg_temp_widget_container"),
+        Notification(static_id="tg_notification_static"),
+                     id="tg_vertical_container")
 
 class WeeklyDaySelector(Widget):
 
     def compose(self) -> ComposeResult:
         yield Horizontal(
-                Button("Monday", id="wk_monday"),
-                Button("Tuesday", id="wk_tueday"),
-                Button("Wednesday", id="wk_wednesday"),
-                Button("Thursday", id="wk_thursday"),
-                Button("Friday", id="wk_friday"),
-                Button("Saturday", id="wk_saturday"),
-                Button("Sunday", id="wk_sunday"),
-                id="wk_buttons_horizontal") 
-        yield Button("Confirm", id='wk_confirm')
+                Button("Monday", id="wk_monday", classes="auto_size_small_margin"),
+                Button("Tuesday", id="wk_tueday", classes="auto_size_small_margin"),
+                Button("Wednesday", id="wk_wednesday", classes="auto_size_small_margin"),
+                Button("Thursday", id="wk_thursday", classes="auto_size_small_margin"),
+                Button("Friday", id="wk_friday", classes="auto_size_small_margin"),
+                Button("Saturday", id="wk_saturday", classes="auto_size_small_margin"),
+                Button("Sunday", id="wk_sunday", classes="auto_size_small_margin"),
+                id="wk_buttons_horizontal")
 
 
 class MonthlyDateSelector(Widget):
@@ -512,7 +533,7 @@ class MonthlyDateSelector(Widget):
             if month.strip() != "":
                 self.month_buttons.append(Button(month[:3], id=f"month_{str(month[:3]).lower()}"))
 
-        # this is ghetto asf but I just want the ids to not be capitals
+        # this is ghetto asf but I just want the ids to be lowercase will fix l8r
         return Horizontal(Vertical(*self.month_buttons[0:3],
 						 id=f"month_{str(self.month_buttons[0].label).lower()}_to_{str(self.month_buttons[2].label).lower()}"), #id=month_jan_to_mar
 
