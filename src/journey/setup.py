@@ -481,8 +481,9 @@ class TaskGoalCollection(VerticalGroup):
                 container.styles.width = "0"
                 container.styles.height = "0"
 
+
         elif "weekly" in event_id:
-            widget = WeeklyDaySelector()
+            widget = WeeklyDaySelector(id="tg_weekly_widget")
             await self.set_frequency(widget, 15,100)
 
         elif "monthly" in event_id:
@@ -521,11 +522,32 @@ class TaskGoalCollection(VerticalGroup):
                      id="tg_vertical_container")
 
 class DailyCompletionSelector(Widget):
-    ...
+    def __init__(self, id: str):
+        super().__init__(self, id=id)
+
+
+
+    def compose(self) -> ComposeResult:
+        return super().compose()
 
 
 
 class WeeklyDaySelector(Widget):
+    def __init__(self, id: str):
+        super().__init__(id=id)
+        self.activated_buttons: list[str] = []
+
+
+    def on_button_pressed(self, event: Button.Pressed):
+        button_name = str(event.button.label)
+        if button_name in self.activated_buttons:
+            event.button.styles.color = 'white'
+            event.button.styles.background= 'grey'
+            self.activated_buttons.remove(button_name)
+            return
+        self.activated_buttons.append(str(event.button.label))
+        event.button.styles.color = "green"
+        event.button.styles.background= '#CEF6D1'
 
 
     def compose(self) -> ComposeResult:
@@ -549,12 +571,14 @@ class MonthlyDateSelector(Widget):
         self.quarterly_buttons: list[Button] = []
     
     @on(Button.Pressed)
-    def display_days(self):
+    def display_days(self, event: Button.Pressed):
         ...
+
     def monthly_widget(self):
         for month in calendar.month_name:
             if month.strip() != "":
-                self.month_buttons.append(Button(month[:3], id=f"month_{str(month[:3]).lower()}"))
+                self.month_buttons.append(Button(month[:3], id=f"month_{str(month[:3]).lower()}",
+                                                 name=month))
 
         return Horizontal(Vertical(*self.month_buttons[0:3],
 						 id=f"month_jan_to_mar"), 
