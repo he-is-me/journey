@@ -3,6 +3,7 @@ import calendar
 from ctypes import ArgumentError
 from dataclasses import dataclass, field
 from enum import Enum
+from functools import lru_cache
 from logging import root
 import math
 from textual.app import App, ComposeResult
@@ -422,9 +423,39 @@ class TaskGoalCollection(VerticalGroup):
     of goals in Journey."""
     def __init__(self, id: str):
         super().__init__(id=id)
-        self.currently_mounted_widget = None
-        self.currently_selected_widget = None
+        self.mounted_widget: Widget|None = None
 
+
+    @lru_cache(maxsize=3) 
+    def get_container(self, id: str) -> Vertical:
+        if not id.startswith("#"): 
+            id = "#" + id
+        return self.query_one(id, Vertical)
+
+    async def set_frequency(self, 
+                            widget: Widget,
+                            height: int,
+                            width: int,
+                            ):
+        container = self.get_container(id="tg_temp_widget_container")
+        if self.mounted_widget != None:
+            if self.mounted_widget.id == widget.id:
+                self.mounted_widget = None
+                container.styles.height = 0
+                container.styles.width = 0
+                return
+
+        assert height <= 100 and height >= 0
+        assert width <= 100 and width >= 0
+
+        try:
+            await container.mount(widget)
+            container.styles.height = str(height) + '%'
+            container.styles.width = str(width) + '%' 
+        except Exception:
+            return
+
+        self.mounted_widget = widget
 
 
     @on(Button.Pressed, """#tg_one_time_thing_btn,
@@ -435,50 +466,33 @@ class TaskGoalCollection(VerticalGroup):
     async def pressed_frequency(self, event: Button.Pressed):
         #TODO put all logic under checks in 1 or 2 function calls to clean this shit up !
         event_id = str(event.button.id)
-        if self.currently_mounted_widget != None:
-            await self.currently_mounted_widget.remove()
+        if self.mounted_widget != None: 
+            await self.mounted_widget.remove()
 
         if "one_time" in event_id:
-            self.currently_selected_widget = "one_time"
-            if self.currently_mounted_widget != None:
+            if self.mounted_widget != None:
                 container = self.query_one("#tg_temp_widget_container", Vertical)
                 container.styles.width = "0"
                 container.styles.height = "0"
 
         elif "daily" in event_id:
-            self.currently_selected_widget = "daily"
-            if self.currently_mounted_widget != None:
+            if self.mounted_widget != None:
                 container = self.query_one("#tg_temp_widget_container", Vertical)
                 container.styles.width = "0"
                 container.styles.height = "0"
 
         elif "weekly" in event_id:
             widget = WeeklyDaySelector()
-            container = self.query_one("#tg_temp_widget_container", Vertical)
-            await container.mount(widget)
-            container.styles.width = "100%"
-            container.styles.height = '15%'
-            self.currently_mounted_widget = widget
-            self.currently_selected_widget = 'quaterly'
-            
+            await self.set_frequency(widget, 15,100)
+
         elif "monthly" in event_id:
             widget = MonthlyDateSelector(id="tg_monthly_widget")
-            container = self.query_one("#tg_temp_widget_container", Vertical)
-            await container.mount(widget)
-            container.styles.width = "100%"
-            container.styles.height = '30%'
-            self.currently_mounted_widget = widget
-            self.currently_selected_widget = 'quaterly'
-            
+            await self.set_frequency(widget, 30,100)
+
         elif "quaterly" in event_id:
             widget = MonthlyDateSelector(id="tg_quaterly_widget",
                                          quaterly=True)
-            container = self.query_one("#tg_temp_widget_container", Vertical)
-            await container.mount(widget)
-            container.styles.width = "100%"
-            container.styles.height = '30%'
-            self.currently_mounted_widget = widget
-            self.currently_selected_widget = 'quaterly'
+            await self.set_frequency(widget, 30,100)
             
 
     def compose(self) -> ComposeResult:
@@ -506,7 +520,13 @@ class TaskGoalCollection(VerticalGroup):
         Notification(static_id="tg_notification_static"),
                      id="tg_vertical_container")
 
+class DailyCompletionSelector(Widget):
+    ...
+
+
+
 class WeeklyDaySelector(Widget):
+
 
     def compose(self) -> ComposeResult:
         yield Horizontal(
@@ -527,25 +547,23 @@ class MonthlyDateSelector(Widget):
         self.month_buttons: list[Button] = []
         self.quarterly_statics: list[Static] = []
         self.quarterly_buttons: list[Button] = []
-
+    
+    @on(Button.Pressed)
+    def display_days(self):
+        ...
     def monthly_widget(self):
         for month in calendar.month_name:
             if month.strip() != "":
                 self.month_buttons.append(Button(month[:3], id=f"month_{str(month[:3]).lower()}"))
 
-        # this is ghetto asf but I just want the ids to be lowercase will fix l8r
         return Horizontal(Vertical(*self.month_buttons[0:3],
-						 id=f"month_{str(self.month_buttons[0].label).lower()}_to_{str(self.month_buttons[2].label).lower()}"), #id=month_jan_to_mar
-
+						 id=f"month_jan_to_mar"), 
                         Vertical(*self.month_buttons[3:6],
-						id=f"month_{str(self.month_buttons[3].label).lower()}_to_{str(self.month_buttons[5].label).lower()}"),#id=month_apr_to_jun
-
+						id=f"month_apr_to_jun"),
                         Vertical(*self.month_buttons[6:9],
-						id=f"month_{str(self.month_buttons[6].label).lower()}_to_{str(self.month_buttons[8].label).lower()}"),#id=month_jul_to_sep
-
+						id=f"month_jul_to_sep"),
                         Vertical(*self.month_buttons[9:12],
-						id=f"month_{str(self.month_buttons[9].label).lower()}_to_{str(self.month_buttons[11].label).lower()}"),#id=month_oct_to_dec
-
+						id=f"month_oct_to_dec"),
                         id="month_buttons_horizontal")
             
 
@@ -556,19 +574,16 @@ class MonthlyDateSelector(Widget):
 
         return Horizontal(Vertical(Button("Q1"),
 						*self.quarterly_statics[0:3],
-                        id=f"month_{str(self.quarterly_statics[0]._content).lower()}_to_{str(self.quarterly_statics[2]._content).lower()}"), 
-
+                        id=f"month_jan_to_mar"), 
                         Vertical(Button("Q2"),
 						*self.quarterly_statics[3:6],
-						id=f"month_{str(self.quarterly_statics[3]._content).lower()}_to_{str(self.quarterly_statics[5]._content).lower()}"),
-
+						id=f"month_apr_to_jun"),
                         Vertical(Button("Q3"),
 						*self.quarterly_statics[6:9],
-						id=f"month_{str(self.quarterly_statics[6]._content).lower()}_to_{str(self.quarterly_statics[8]._content).lower()}"),
-
+						id=f"month_jul_to_sep"),
                         Vertical(Button("Q4"),
 						*self.quarterly_statics[9:12],
-						id=f"month_{str(self.quarterly_statics[9]._content).lower()}_to_{str(self.quarterly_statics[11]._content).lower()}"),
+						id=f"month_oct_to_dec"),
                         id="quaterly_statics_horizontal")
             
 

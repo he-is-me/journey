@@ -73,7 +73,6 @@ MainGoalCollection{
   
 }
 #notification_static{
-  border: round red;
   margin: 0 5;
   width: auto;
 }
@@ -165,6 +164,10 @@ SubGoalCollection{
 #tg_goal_input{
   margin: 1 4;
 }
+ #tg_temp_widget_container{
+  height: 0;
+  width: 0;
+ }
 
 #tg_frequency_horizontal_container{
   align: center middle;
@@ -208,7 +211,6 @@ SubGoalCollection{
   height: auto;
   width: auto;
   align: center middle;
-  border: round yellow;
 }
 /*######## end ########*/
 
@@ -283,7 +285,17 @@ SubGoalCollection{
   padding: 0 6;
   margin: 0 1;
 }
-
+#wk_buttons_horizontal{
+  align: center middle;
+}
+.auto_size_small_margin{
+  height: auto;
+  width: auto;
+  margin: 1;
+}
 .center_align{
   text-align: center;
+}
+.center_widget{
+  align: center middle;
 }
