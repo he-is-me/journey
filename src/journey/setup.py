@@ -10,7 +10,7 @@ from textual.app import App, ComposeResult
 from datetime import  datetime
 from textual import on
 from textual.binding import Binding
-from textual.containers import Center, Horizontal, Vertical, VerticalGroup
+from textual.containers import Center, Horizontal, Vertical, VerticalGroup, VerticalScroll
 from textual.reactive import reactive
 from textual.validation import Integer, Length, ValidationResult, Validator
 from textual.widget import Widget
@@ -541,8 +541,8 @@ class WeeklyDaySelector(Widget):
     def on_button_pressed(self, event: Button.Pressed):
         button_name = str(event.button.label)
         if button_name in self.activated_buttons:
-            event.button.styles.color = 'white'
-            event.button.styles.background= 'grey'
+            event.button.styles.color = None
+            event.button.styles.background = None
             self.activated_buttons.remove(button_name)
             return
         self.activated_buttons.append(str(event.button.label))
@@ -569,16 +569,50 @@ class MonthlyDateSelector(Widget):
         self.month_buttons: list[Button] = []
         self.quarterly_statics: list[Static] = []
         self.quarterly_buttons: list[Button] = []
+        self.day_buttons: list[Button] = []
     
-    @on(Button.Pressed)
-    def display_days(self, event: Button.Pressed):
+
+    async def go_back(self):
+        await self.query_one("#days_main_vertical", Vertical).remove()
+        self.display = 'show'
         ...
 
+
+    async def on_button_pressed(self, event: Button.Pressed):
+        try:
+            month_num = int(event.button.name) # pyright: ignore[]
+            year_num = datetime.today().year
+        except Exception:
+            return
+            
+        for date in calendar.Calendar().itermonthdays3(year_num, month_num):
+            day = str(date[2])
+            if date[1] == month_num:
+                self.day_buttons.append(Button(label=day,
+                                               name=f"{month_num}_{day}_{year_num}",
+                                               compact=False,
+                                               classes="day_buttons"
+                                               ))
+        self.display = "none"
+        container = self.app.query_one("#tg_temp_widget_container", Vertical) 
+        await container.mount(Vertical(
+                              Horizontal(*self.day_buttons[0:8], classes="center_widget"),
+        					  Horizontal(*self.day_buttons[8:16], classes="center_widget"),
+        					  Horizontal(*self.day_buttons[16:24], classes="center_widget"),
+        					  Horizontal(*self.day_buttons[24:], classes="center_widget"),
+        					  Horizontal(Button("back", compact=False, id="days_back"),
+                                         Button("confirm", compact=False, id="days_confirm"),
+                                         classes="center_widget"), id="days_main_vertical"))
+        container.styles.height = "35%"
+        
+
+
+
     def monthly_widget(self):
-        for month in calendar.month_name:
+        for idx,month in enumerate(calendar.month_name):
             if month.strip() != "":
                 self.month_buttons.append(Button(month[:3], id=f"month_{str(month[:3]).lower()}",
-                                                 name=month))
+                                                 name=str(idx)))
 
         return Horizontal(Vertical(*self.month_buttons[0:3],
 						 id=f"month_jan_to_mar"), 
@@ -693,6 +727,9 @@ class JourneyApp(App):
     current_page_object = MainGoalCollection
     current_page_instance  = main_goal_page
 
+
+    def on_mount(self):
+        self.theme = "catppuccin-mocha"
 
     def compose(self) -> ComposeResult:
         yield Header()

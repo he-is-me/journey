@@ -1,7 +1,7 @@
 GoalTree{
   
   height: 100%;
-  width: 30%;
+  width: 20%;
 }
 
 
@@ -165,6 +165,7 @@ SubGoalCollection{
   margin: 1 4;
 }
  #tg_temp_widget_container{
+  border: round green;
   height: 0;
   width: 0;
  }
@@ -288,10 +289,20 @@ SubGoalCollection{
 #wk_buttons_horizontal{
   align: center middle;
 }
+#day_buttons_confirm{
+  dock: right;
+}
+#day_buttons_back{
+  dock: left;
+}
 .auto_size_small_margin{
   height: auto;
   width: auto;
   margin: 1;
+}
+.day_buttons{
+  height: auto;
+  width: auto;
 }
 .center_align{
   text-align: center;
