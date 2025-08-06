@@ -258,7 +258,7 @@ SubGoalCollection{
   height: auto;
   align: center middle;
 }
-#quaterly_statics_horizontal{
+#quarterly_month_buttons_horizontal{
   height: auto;
   align: center middle;
 }

@@ -561,52 +561,155 @@ class WeeklyDaySelector(Widget):
                 Button("Sunday", id="wk_sunday", classes="auto_size_small_margin"),
                 id="wk_buttons_horizontal")
 
+class DaySelector(Widget):
+    def __init__(self, id: str, month: int, year: int):
+        super().__init__(id=id)
+        self.day_buttons: list[Button] = []
+        self.year = year
+        self.month = month
+        self.selected_days: list[str] = []
+        self.container = self.app.query_one("#tg_temp_widget_container", Vertical)
+
+
+
+    def selected_day(self, button: Button, button_name: str):
+        if button_name in self.selected_days:
+            button.styles.background = None
+            button.styles.color = None
+            self.selected_days.remove(button_name)
+            return
+        button.styles.background = "green" 
+        button.styles.color = "white"
+
+    def on_button_pressed(self, event: Button.Pressed):
+        button = event.button
+        button_name = str(button.name)
+        if str(self.month) in button_name:
+            self.selected_day(button, button_name)
+        elif "back" in button_name:
+            self.display = "none"
+            container_children: list[Widget] = [c for c in self.container.children]
+            for child in container_children:
+                if child.id == "tg_monthly_widget":
+                    child.display = "block"
+                    break
+
+            """
+            PROGRESSION NOTE: we left off trying to figure out how to refactor 
+            the code that mounts and unmounts widgets to just hiding them so that
+            we dont have to keep respawning new instances and saving older instances 
+            data in dicts. Im thinking of taking out all mount and unmounts for the 
+            task widget and replacing it all with display = 'none' | 'block'
+            """
+
+            ...
+        elif "confirm" in button_name:
+            ...
+        else:
+            ...
+
+
+
+    def on_mount(self):
+        self.container.styles.height = "35%"
+
+    def spawn_buttons(self):
+        """spawns all buttons needed for date selection for given month and year"""
+
+        for date in calendar.Calendar().itermonthdays3(self.year, self.month):
+            day = str(date[2])
+            if date[1] == self.month:
+                self.day_buttons.append(Button(label=day,
+                                               name=f"{self.month}_{day}_{self.year}",
+                                               compact=False,
+                                               classes="day_buttons"
+                                               ))
+        buttons = Vertical(
+                          Horizontal(*self.day_buttons[0:8], classes="center_widget"),
+                          Horizontal(*self.day_buttons[8:16], classes="center_widget"),
+                          Horizontal(*self.day_buttons[16:24], classes="center_widget"),
+                          Horizontal(*self.day_buttons[24:], classes="center_widget"),
+                          Horizontal(Button("back", name="days_back_button"),
+                                     Button("confirm", name="days_confirm_button"),
+                                     Button("set for all months", name="days_set_all_button"),
+                                     classes="center_widget"), id="days_main_vertical")
+        return buttons
+        
+
+    def compose(self) -> ComposeResult:
+        yield self.spawn_buttons()
+        
 
 class MonthlyDateSelector(Widget):
     def __init__(self,id: str, quaterly: bool=False):
         super().__init__(id=id)
         self.quaterly = quaterly
         self.month_buttons: list[Button] = []
-        self.quarterly_statics: list[Static] = []
+        self.quarterly_month_buttons: list[Button] = []
         self.quarterly_buttons: list[Button] = []
-        self.day_buttons: list[Button] = []
+        self.container = self.app.query_one("#tg_temp_widget_container", Vertical)
+        self.selected_quarterly_buttons: list[str] = []
     
 
-    async def go_back(self):
-        await self.query_one("#days_main_vertical", Vertical).remove()
-        self.display = 'show'
+    def quaterly_row_selection(self, button: Button, button_name: str):
+        button_container = button.parent
+        if button_container != None:
+            self.app.query_one("#tg_goal_input", Input).value = str(button_container.children)
+            for b in button_container.children:
+                b_name = str(b.name)
+                if b_name != button_name and b_name not in self.selected_quarterly_buttons:
+                    button.styles.background = "green"
+                    button.styles.color = "white"
+                    b.styles.background = "green"
+                    b.styles.color = "white"
+                    self.selected_quarterly_buttons.append(b_name)
+                elif b_name in self.selected_quarterly_buttons:
+                    button.styles.background = "green"
+                    button.styles.color = "white"
+                    b.styles.background = None
+                    b.styles.color = None
+                    self.selected_quarterly_buttons.remove(b_name)
+
         ...
 
 
-    async def on_button_pressed(self, event: Button.Pressed):
-        try:
-            month_num = int(event.button.name) # pyright: ignore[]
-            year_num = datetime.today().year
-        except Exception:
+    def quarterly_button_action(self, button: Button):
+        name = str(button.name)
+        if "Q" in name:
+            self.quaterly_row_selection(button, name)
+            ...
             return
-            
-        for date in calendar.Calendar().itermonthdays3(year_num, month_num):
-            day = str(date[2])
-            if date[1] == month_num:
-                self.day_buttons.append(Button(label=day,
-                                               name=f"{month_num}_{day}_{year_num}",
-                                               compact=False,
-                                               classes="day_buttons"
-                                               ))
-        self.display = "none"
-        container = self.app.query_one("#tg_temp_widget_container", Vertical) 
-        await container.mount(Vertical(
-                              Horizontal(*self.day_buttons[0:8], classes="center_widget"),
-        					  Horizontal(*self.day_buttons[8:16], classes="center_widget"),
-        					  Horizontal(*self.day_buttons[16:24], classes="center_widget"),
-        					  Horizontal(*self.day_buttons[24:], classes="center_widget"),
-        					  Horizontal(Button("back", compact=False, id="days_back"),
-                                         Button("confirm", compact=False, id="days_confirm"),
-                                         classes="center_widget"), id="days_main_vertical"))
-        container.styles.height = "35%"
+        if name in self.selected_quarterly_buttons:
+            button.styles.background = None
+            button.styles.color = None
+            self.selected_quarterly_buttons.remove(name)
+            return
+        button.styles.background = "green"
+        button.styles.color = "white"
+        self.selected_quarterly_buttons.append(name)
         
 
 
+    def on_button_pressed(self, event: Button.Pressed):
+        button = event.button
+        if self.quaterly:
+            self.quarterly_button_action(button)
+            return
+        assert type(int(button.name)) == int # pyright: ignore[]  
+        month = int(button.name) #the name arg for each monb_name] # pyright: ignore[]
+        year = datetime.today().year
+        day_selector_widget = DaySelector(id="day_selector_widget", month=month, year=year)
+        container_children: list[Widget] = [c for c in self.container.children]
+        for child in container_children:
+            child.styles.display = "none"
+        
+        try:
+            self.container.mount(day_selector_widget)
+        except Exception:
+            day_selector_widget.display = "block"
+        
+
+            
 
     def monthly_widget(self):
         for idx,month in enumerate(calendar.month_name):
@@ -625,24 +728,26 @@ class MonthlyDateSelector(Widget):
                         id="month_buttons_horizontal")
             
 
-    def quaterly_widget(self):
-        for month in calendar.month_name:
+    def quarterly_widget(self):
+        for month_num, month in enumerate(calendar.month_name):
             if month.strip() != "":
-                self.quarterly_statics.append(Static(month[:3], id=f"month_{str(month[:3]).lower()}", classes="center_align"))
+                self.quarterly_month_buttons.append(Button(month[:3], 
+                                                           id=f"month_{str(month[:3]).lower()}", 
+                                                           name=str(month_num)))
 
-        return Horizontal(Vertical(Button("Q1"),
-						*self.quarterly_statics[0:3],
+        return Horizontal(Vertical(Button("Q1",classes="center_align",compact=True,name="Q1"),
+						*self.quarterly_month_buttons[0:3],
                         id=f"month_jan_to_mar"), 
-                        Vertical(Button("Q2"),
-						*self.quarterly_statics[3:6],
+                        Vertical(Button("Q2", classes="center_align",compact=True,name="Q2"),
+						*self.quarterly_month_buttons[3:6],
 						id=f"month_apr_to_jun"),
-                        Vertical(Button("Q3"),
-						*self.quarterly_statics[6:9],
+                        Vertical(Button("Q3", classes="center_align",compact=True,name="Q3"),
+						*self.quarterly_month_buttons[6:9],
 						id=f"month_jul_to_sep"),
-                        Vertical(Button("Q4"),
-						*self.quarterly_statics[9:12],
+                        Vertical(Button("Q4", classes="center_align",compact=True,name="Q4"),
+						*self.quarterly_month_buttons[9:12],
 						id=f"month_oct_to_dec"),
-                        id="quaterly_statics_horizontal")
+                        id="quarterly_month_buttons_horizontal")
             
 
 
@@ -651,7 +756,7 @@ class MonthlyDateSelector(Widget):
         if not self.quaterly:
             yield self.monthly_widget()
         else:
-            yield self.quaterly_widget()
+            yield self.quarterly_widget()
             
 
 
