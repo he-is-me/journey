@@ -10,6 +10,7 @@ from textual.app import App, ComposeResult
 from datetime import  datetime
 from textual import on
 from textual.binding import Binding
+from textual.color import Color
 from textual.containers import Center, Horizontal, Vertical, VerticalGroup, VerticalScroll
 from textual.reactive import reactive
 from textual.validation import Integer, Length, ValidationResult, Validator
@@ -21,6 +22,11 @@ from typing import Any,Tuple,  Dict, List,  TypedDict
 
 #TODO if i make this node.data accesible in gloabl I need to make sure it changes everywhere else:
 # I need to also make sure that if the user decides to update the data it is updated everywhere
+
+
+class DisplayOption(Enum):
+    SHOW = 'block'
+    HIDE = 'none'
 
 
 class MainGoalLayer(TypedDict):
@@ -562,13 +568,56 @@ class WeeklyDaySelector(Widget):
                 id="wk_buttons_horizontal")
 
 class DaySelector(Widget):
-    def __init__(self, id: str, month: int, year: int):
+    month = reactive(1) 
+    year = datetime.today().year
+    int_month = 1
+    month_name = str(calendar.month_name[int_month])[:3] # pyright: ignore[]
+    displayed: reactive[DisplayOption] = reactive(DisplayOption.SHOW)
+    def __init__(self, id: str):
         super().__init__(id=id)
         self.day_buttons: list[Button] = []
-        self.year = year
-        self.month = month
         self.selected_days: list[str] = []
         self.container = self.app.query_one("#tg_temp_widget_container", Vertical)
+        self.button_states: dict[str,set[str]] = {} 
+    
+
+    def _collect_active_buttons(self) -> set[str]:
+        active_buttons = [button
+                          for button in self.day_buttons 
+                          if button.styles.background == Color(0,128,0)]
+        return  {str(button.name) for button in active_buttons}
+        
+
+
+    def watch_displayed(self):
+        if self.displayed == DisplayOption.HIDE:
+            if self.month_name not in self.button_states.keys():
+                self.button_states[self.month_name] = self._collect_active_buttons()
+                self.app.query_one("#tg_goal_input", Input).value = str(self.button_states[self.month_name]) + " First Time"
+            else:
+                current_names = self.button_states[self.month_name]
+                new_names = current_names | self._collect_active_buttons() # remove duplicates
+                old_values = current_names - new_names #isolate any old values that were not in new values
+                try:
+                    {new_names.remove(val) for val in old_values} # remove old values from new values
+                except Exception:
+                    pass
+                self.button_states[self.month_name] = new_names 
+                self.app.query_one("#tg_goal_input", Input).value = str(self.button_states[self.month_name])
+            self.display = DisplayOption.HIDE.value
+        else:
+            self.display = DisplayOption.SHOW.value
+
+
+
+
+            
+
+
+
+    def watch_reactive_month(self):
+        self.int_month = self.month
+
 
 
 
@@ -580,6 +629,7 @@ class DaySelector(Widget):
             return
         button.styles.background = "green" 
         button.styles.color = "white"
+        self.selected_days.append(button_name)
 
     def on_button_pressed(self, event: Button.Pressed):
         button = event.button
@@ -587,20 +637,8 @@ class DaySelector(Widget):
         if str(self.month) in button_name:
             self.selected_day(button, button_name)
         elif "back" in button_name:
-            self.display = "none"
-            container_children: list[Widget] = [c for c in self.container.children]
-            for child in container_children:
-                if child.id == "tg_monthly_widget":
-                    child.display = "block"
-                    break
-
-            """
-            PROGRESSION NOTE: we left off trying to figure out how to refactor 
-            the code that mounts and unmounts widgets to just hiding them so that
-            we dont have to keep respawning new instances and saving older instances 
-            data in dicts. Im thinking of taking out all mount and unmounts for the 
-            task widget and replacing it all with display = 'none' | 'block'
-            """
+            self.displayed = DisplayOption.HIDE
+            self.app.query_one(MonthlyDateSelector).displayed = DisplayOption.SHOW
 
             ...
         elif "confirm" in button_name:
@@ -620,11 +658,12 @@ class DaySelector(Widget):
             day = str(date[2])
             if date[1] == self.month:
                 self.day_buttons.append(Button(label=day,
-                                               name=f"{self.month}_{day}_{self.year}",
+                                               name=f"{self.month}/{day}/{self.year}",
                                                compact=False,
                                                classes="day_buttons"
                                                ))
         buttons = Vertical(
+                          # Static(self.month_name, classes=""),
                           Horizontal(*self.day_buttons[0:8], classes="center_widget"),
                           Horizontal(*self.day_buttons[8:16], classes="center_widget"),
                           Horizontal(*self.day_buttons[16:24], classes="center_widget"),
@@ -641,6 +680,7 @@ class DaySelector(Widget):
         
 
 class MonthlyDateSelector(Widget):
+    displayed: reactive[DisplayOption] = reactive(DisplayOption.SHOW)
     def __init__(self,id: str, quaterly: bool=False):
         super().__init__(id=id)
         self.quaterly = quaterly
@@ -649,10 +689,16 @@ class MonthlyDateSelector(Widget):
         self.quarterly_buttons: list[Button] = []
         self.container = self.app.query_one("#tg_temp_widget_container", Vertical)
         self.selected_quarterly_buttons: list[str] = []
-        self.year = datetime.today().year
-        self.month = 1
-        self.day_selector_widget = DaySelector(id="day_selector_widget", month=self.month, year=self.year)
+        self.day_selector_widget = DaySelector(id="day_selector_widget")
     
+
+    def watch_displayed(self):
+        if self.displayed == DisplayOption.HIDE:
+            self.display = DisplayOption.HIDE.value
+        else:
+            self.display  = DisplayOption.SHOW.value
+
+
 
     def quaterly_row_selection(self, button: Button, button_name: str):
         button_container = button.parent
@@ -700,15 +746,12 @@ class MonthlyDateSelector(Widget):
             return
         assert type(int(button.name)) == int # pyright: ignore[]  
         self.month = int(button.name) #the name arg for each monb_name] # pyright: ignore[]
-        self.app.query_one("#tg_goal_input", Input).value = str(self.month)
-        container_children: list[Widget] = [c for c in self.container.children]
-        for child in container_children:
-            child.styles.display = "none"
-        
+        self.displayed = DisplayOption.HIDE
+
         if not self.day_selector_widget.is_mounted:
             self.container.mount(self.day_selector_widget)
             return
-        self.day_selector_widget.display = "block"
+        self.day_selector_widget.displayed = DisplayOption.SHOW
         
 
             
