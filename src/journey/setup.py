@@ -649,6 +649,9 @@ class MonthlyDateSelector(Widget):
         self.quarterly_buttons: list[Button] = []
         self.container = self.app.query_one("#tg_temp_widget_container", Vertical)
         self.selected_quarterly_buttons: list[str] = []
+        self.year = datetime.today().year
+        self.month = 1
+        self.day_selector_widget = DaySelector(id="day_selector_widget", month=self.month, year=self.year)
     
 
     def quaterly_row_selection(self, button: Button, button_name: str):
@@ -696,17 +699,16 @@ class MonthlyDateSelector(Widget):
             self.quarterly_button_action(button)
             return
         assert type(int(button.name)) == int # pyright: ignore[]  
-        month = int(button.name) #the name arg for each monb_name] # pyright: ignore[]
-        year = datetime.today().year
-        day_selector_widget = DaySelector(id="day_selector_widget", month=month, year=year)
+        self.month = int(button.name) #the name arg for each monb_name] # pyright: ignore[]
+        self.app.query_one("#tg_goal_input", Input).value = str(self.month)
         container_children: list[Widget] = [c for c in self.container.children]
         for child in container_children:
             child.styles.display = "none"
         
-        try:
-            self.container.mount(day_selector_widget)
-        except Exception:
-            day_selector_widget.display = "block"
+        if not self.day_selector_widget.is_mounted:
+            self.container.mount(self.day_selector_widget)
+            return
+        self.day_selector_widget.display = "block"
         
 
             
