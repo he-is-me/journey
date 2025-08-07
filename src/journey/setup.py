@@ -552,8 +552,8 @@ class WeeklyDaySelector(Widget):
             self.activated_buttons.remove(button_name)
             return
         self.activated_buttons.append(str(event.button.label))
-        event.button.styles.color = "green"
-        event.button.styles.background= '#CEF6D1'
+        event.button.styles.color = "white"
+        event.button.styles.background= 'green'
 
 
     def compose(self) -> ComposeResult:
@@ -568,7 +568,7 @@ class WeeklyDaySelector(Widget):
                 id="wk_buttons_horizontal")
 
 class DaySelector(Widget):
-    month = reactive(1) 
+    month = reactive(1)
     year = datetime.today().year
     int_month = 1
     month_name = str(calendar.month_name[int_month])[:3] # pyright: ignore[]
@@ -580,7 +580,18 @@ class DaySelector(Widget):
         self.container = self.app.query_one("#tg_temp_widget_container", Vertical)
         self.button_states: dict[str,set[str]] = {} 
     
+    @staticmethod
+    def _reset_button_state(func):
+        def wrapper(self):
+            result = func(self)
+            for button in self.day_buttons:
+                button.styles.color = None
+                button.styles.background = None
+                self.selected_days.clear()
+            return result
+        return wrapper
 
+    @_reset_button_state
     def _collect_active_buttons(self) -> set[str]:
         active_buttons = [button
                           for button in self.day_buttons 
@@ -593,7 +604,7 @@ class DaySelector(Widget):
         if self.displayed == DisplayOption.HIDE:
             if self.month_name not in self.button_states.keys():
                 self.button_states[self.month_name] = self._collect_active_buttons()
-                self.app.query_one("#tg_goal_input", Input).value = str(self.button_states[self.month_name]) + " First Time"
+                self.app.query_one("#tg_goal_input", Input).value = f"{self.month_name} " + str(self.button_states[self.month_name]) + " First Time"
             else:
                 current_names = self.button_states[self.month_name]
                 new_names = current_names | self._collect_active_buttons() # remove duplicates
@@ -603,7 +614,7 @@ class DaySelector(Widget):
                 except Exception:
                     pass
                 self.button_states[self.month_name] = new_names 
-                self.app.query_one("#tg_goal_input", Input).value = str(self.button_states[self.month_name])
+                self.app.query_one("#tg_goal_input", Input).value =f"{self.month_name} " +  str(self.button_states[self.month_name])
             self.display = DisplayOption.HIDE.value
         else:
             self.display = DisplayOption.SHOW.value
@@ -611,12 +622,19 @@ class DaySelector(Widget):
 
 
 
-            
+                
 
 
 
-    def watch_reactive_month(self):
+    async def watch_month(self):
         self.int_month = self.month
+        self.month_name = calendar.month_name[self.int_month][:3]
+
+        # self.app.query_one("#tg_goal_input", Input).value = str(f"month: {self.month} | int_month: {self.int_month} | month_name: {self.month_name}")
+
+
+
+        
 
 
 
@@ -634,9 +652,7 @@ class DaySelector(Widget):
     def on_button_pressed(self, event: Button.Pressed):
         button = event.button
         button_name = str(button.name)
-        if str(self.month) in button_name:
-            self.selected_day(button, button_name)
-        elif "back" in button_name:
+        if "back" in button_name:
             self.displayed = DisplayOption.HIDE
             self.app.query_one(MonthlyDateSelector).displayed = DisplayOption.SHOW
 
@@ -644,7 +660,9 @@ class DaySelector(Widget):
         elif "confirm" in button_name:
             ...
         else:
+            self.selected_day(button, button_name)
             ...
+
 
 
 
@@ -658,7 +676,7 @@ class DaySelector(Widget):
             day = str(date[2])
             if date[1] == self.month:
                 self.day_buttons.append(Button(label=day,
-                                               name=f"{self.month}/{day}/{self.year}",
+                                               name=day,
                                                compact=False,
                                                classes="day_buttons"
                                                ))
@@ -745,12 +763,13 @@ class MonthlyDateSelector(Widget):
             self.quarterly_button_action(button)
             return
         assert type(int(button.name)) == int # pyright: ignore[]  
-        self.month = int(button.name) #the name arg for each monb_name] # pyright: ignore[]
+        month = int(button.name) #the name arg for each monb_name] # pyright: ignore[]
         self.displayed = DisplayOption.HIDE
 
         if not self.day_selector_widget.is_mounted:
             self.container.mount(self.day_selector_widget)
             return
+        self.day_selector_widget.month = month
         self.day_selector_widget.displayed = DisplayOption.SHOW
         
 
