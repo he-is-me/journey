@@ -578,7 +578,7 @@ class DaySelector(Widget):
         self.day_buttons: list[Button] = []
         self.selected_days: list[str] = []
         self.container = self.app.query_one("#tg_temp_widget_container", Vertical)
-        self.button_states: dict[str,set[str]] = {} 
+        self.button_states: dict[str,list[str]] = {} 
     
     @staticmethod
     def _reset_button_state(func):
@@ -598,9 +598,13 @@ class DaySelector(Widget):
         
 
     def activate_button(self, button: Button):
+        button_name = str(button.name)
         button.styles.color = "white"
         button.styles.background = "green"
-        self.selected_days.append(str(button.name))
+        self.selected_days.append(button_name)
+        if self.month_name not in self.button_states:
+            self.button_states[self.month_name] = []
+        self.button_states[self.month_name].append(button_name)
         # self.app.query_one("tg_goal_input", Input).value = "SOMETHING FUCKED UP"
  
 
@@ -632,15 +636,6 @@ class DaySelector(Widget):
 
     def watch_displayed(self):
         if self.displayed == DisplayOption.HIDE:
-            if self.month_name not in self.button_states:
-                self.button_states[self.month_name] = self._collect_active_buttons()
-                self.app.query_one("#tg_goal_input", Input).value = f"{self.month_name} " + str(self.button_states[self.month_name]) + " First Time"
-            else:
-                current_names = self.button_states[self.month_name]
-                new_names = current_names | self._collect_active_buttons() # remove duplicates
-                self.app.query_one("#tg_goal_input", Input).value = str(new_names)
-                self.button_states[self.month_name] = new_names 
-                # self.app.query_one("#tg_goal_input", Input).value =f"{self.month_name} " +  str(self.button_states[self.month_name])
             self.display = DisplayOption.HIDE.value
         else:
             self.display = DisplayOption.SHOW.value
@@ -668,7 +663,7 @@ class DaySelector(Widget):
     def set_all_dates(self):
         for month in calendar.month_name[:][:3]:
             if month and month not in self.button_states:
-                self.button_states[month] = set()
+                self.button_states[month] = []
         for day in self.button_states[self.month_name]: 
             for month in calendar.month_name[:][:3]:
                 if month not in self.button_states:
