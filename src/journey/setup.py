@@ -585,9 +585,7 @@ class DaySelector(Widget):
         def wrapper(self):
             result = func(self)
             for button in self.day_buttons:
-                button.styles.color = None
-                button.styles.background = None
-                self.selected_days.clear()
+                self.deactivate_button(button, True)
             return result
         return wrapper
 
@@ -599,30 +597,54 @@ class DaySelector(Widget):
         return  {str(button.name) for button in active_buttons}
         
 
+    def activate_button(self, button: Button):
+        button.styles.color = "white"
+        button.styles.background = "green"
+        self.selected_days.append(str(button.name))
+        # self.app.query_one("tg_goal_input", Input).value = "SOMETHING FUCKED UP"
+ 
+
+
+    def deactivate_button(self, button: Button, full_clear: bool=False):
+        button.styles.color = None
+        button.styles.background = None
+        if full_clear:
+            self.selected_days.clear()
+        else:
+            self.selected_days.remove(str(button.name))
+            try:
+                self.button_states[self.month_name].remove(str(button.name))
+            except KeyError:
+                pass
+
+
+    def _set_button_states(self):
+        set_days = set()
+        for month in self.button_states:
+            if self.month_name == month:
+                set_days = self.button_states[month]
+        if len(set_days) != 0:
+            for button in self.day_buttons:
+                for day in set_days:
+                    if button.name == day:
+                        self.activate_button(button)
+                    
 
     def watch_displayed(self):
         if self.displayed == DisplayOption.HIDE:
-            if self.month_name not in self.button_states.keys():
+            if self.month_name not in self.button_states:
                 self.button_states[self.month_name] = self._collect_active_buttons()
                 self.app.query_one("#tg_goal_input", Input).value = f"{self.month_name} " + str(self.button_states[self.month_name]) + " First Time"
             else:
                 current_names = self.button_states[self.month_name]
                 new_names = current_names | self._collect_active_buttons() # remove duplicates
-                old_values = current_names - new_names #isolate any old values that were not in new values
-                try:
-                    {new_names.remove(val) for val in old_values} # remove old values from new values
-                except Exception:
-                    pass
+                self.app.query_one("#tg_goal_input", Input).value = str(new_names)
                 self.button_states[self.month_name] = new_names 
-                self.app.query_one("#tg_goal_input", Input).value =f"{self.month_name} " +  str(self.button_states[self.month_name])
+                # self.app.query_one("#tg_goal_input", Input).value =f"{self.month_name} " +  str(self.button_states[self.month_name])
             self.display = DisplayOption.HIDE.value
         else:
             self.display = DisplayOption.SHOW.value
-
-
-
-
-                
+            self._set_button_states()
 
 
 
@@ -637,17 +659,24 @@ class DaySelector(Widget):
         
 
 
-
-
     def selected_day(self, button: Button, button_name: str):
         if button_name in self.selected_days:
-            button.styles.background = None
-            button.styles.color = None
-            self.selected_days.remove(button_name)
+            self.deactivate_button(button)
             return
-        button.styles.background = "green" 
-        button.styles.color = "white"
-        self.selected_days.append(button_name)
+        self.activate_button(button)
+
+    def set_all_dates(self):
+        for month in calendar.month_name[:][:3]:
+            if month and month not in self.button_states:
+                self.button_states[month] = set()
+        for day in self.button_states[self.month_name]: 
+            for month in calendar.month_name[:][:3]:
+                if month not in self.button_states:
+                    self.button_states[month] = self.button_states[self.month_name]
+                
+                
+
+
 
     def on_button_pressed(self, event: Button.Pressed):
         button = event.button
@@ -656,12 +685,14 @@ class DaySelector(Widget):
             self.displayed = DisplayOption.HIDE
             self.app.query_one(MonthlyDateSelector).displayed = DisplayOption.SHOW
 
-            ...
-        elif "confirm" in button_name:
+        elif "set_all" in button_name:
+            self.set_all_dates()
+
             ...
         else:
             self.selected_day(button, button_name)
             ...
+        
 
 
 
@@ -687,8 +718,7 @@ class DaySelector(Widget):
                           Horizontal(*self.day_buttons[16:24], classes="center_widget"),
                           Horizontal(*self.day_buttons[24:], classes="center_widget"),
                           Horizontal(Button("back", name="days_back_button"),
-                                     Button("confirm", name="days_confirm_button"),
-                                     Button("set for all months", name="days_set_all_button"),
+                                     Button("set date(s) for all months", name="days_set_all_button"),
                                      classes="center_widget"), id="days_main_vertical")
         return buttons
         
@@ -770,6 +800,7 @@ class MonthlyDateSelector(Widget):
             self.container.mount(self.day_selector_widget)
             return
         self.day_selector_widget.month = month
+        self.day_selector_widget.month_name = calendar.month_name[month][:3]
         self.day_selector_widget.displayed = DisplayOption.SHOW
         
 
@@ -919,16 +950,10 @@ class JourneyApp(App):
             self.app.query_one("#tg_input", Input).placeholder =  str(len(self.page_objects))
 
 
-
-
     def action_add_goal_type(self):
         """this is only for adding main goals, sub goals and task
         are added throguh selected events handling"""
         self.add_goal_action()
-
-
-
-
 
 
     def final_input_validation(self, input_widgets: list[Input]) -> bool:
