@@ -605,7 +605,6 @@ class DaySelector(Widget):
         if self.month_name not in self.button_states:
             self.button_states[self.month_name] = []
         self.button_states[self.month_name].append(button_name)
-        # self.app.query_one("tg_goal_input", Input).value = "SOMETHING FUCKED UP"
  
 
 
@@ -623,12 +622,16 @@ class DaySelector(Widget):
 
 
     def _set_button_states(self):
-        set_days = set()
+        set_days = []
         for month in self.button_states:
             if self.month_name == month:
                 set_days = self.button_states[month]
         if len(set_days) != 0:
             for button in self.day_buttons:
+                #this is were the bug is going wrong, 
+                # we're looping by length or something and appedning via 
+                #activate_button() function, I need to make the append, an arg 
+                #so that it doesnt happen automatically, or make another func 
                 for day in set_days:
                     if button.name == day:
                         self.activate_button(button)
@@ -848,7 +851,6 @@ class MonthlyDateSelector(Widget):
         else:
             yield self.quarterly_widget()
             
-
 
 
 class DateValidator(Validator):
