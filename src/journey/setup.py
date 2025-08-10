@@ -583,9 +583,9 @@ class DaySelector(Widget):
     @staticmethod
     def _reset_button_state(func):
         def wrapper(self):
-            result = func(self)
             for button in self.day_buttons:
                 self.deactivate_button(button, True)
+            result = func(self)
             return result
         return wrapper
 
@@ -597,11 +597,14 @@ class DaySelector(Widget):
         return  {str(button.name) for button in active_buttons}
         
 
-    def activate_button(self, button: Button):
+    def activate_button(self, button: Button, set_state_only: bool=False):
         button_name = str(button.name)
         button.styles.color = "white"
         button.styles.background = "green"
-        self.selected_days.append(button_name)
+        if button_name not in self.selected_days:
+            self.selected_days.append(button_name)
+        if set_state_only:
+            return
         if self.month_name not in self.button_states:
             self.button_states[self.month_name] = []
         self.button_states[self.month_name].append(button_name)
@@ -614,13 +617,12 @@ class DaySelector(Widget):
         if full_clear:
             self.selected_days.clear()
         else:
-            self.selected_days.remove(str(button.name))
-            try:
+            if str(button.name) in self.selected_days:
+                self.selected_days.remove(str(button.name))
+            if str(button.name) in self.button_states[self.month_name]:
                 self.button_states[self.month_name].remove(str(button.name))
-            except KeyError:
-                pass
 
-
+    @_reset_button_state
     def _set_button_states(self):
         set_days = []
         for month in self.button_states:
@@ -634,7 +636,7 @@ class DaySelector(Widget):
                 #so that it doesnt happen automatically, or make another func 
                 for day in set_days:
                     if button.name == day:
-                        self.activate_button(button)
+                        self.activate_button(button, set_state_only=True)
                     
 
     def watch_displayed(self):
@@ -649,6 +651,8 @@ class DaySelector(Widget):
     async def watch_month(self):
         self.int_month = self.month
         self.month_name = calendar.month_name[self.int_month][:3]
+        stuff = calendar.month_abbr[self.int_month]
+        self.app.query_one("#tg_goal_input", Input).value = stuff
 
         # self.app.query_one("#tg_goal_input", Input).value = str(f"month: {self.month} | int_month: {self.int_month} | month_name: {self.month_name}")
 
@@ -664,16 +668,26 @@ class DaySelector(Widget):
         self.activate_button(button)
 
     def set_all_dates(self):
-        for month in calendar.month_name[:][:3]:
+
+        for month_name in calendar.month_name:
+            month = month_name[:3]
             if month and month not in self.button_states:
                 self.button_states[month] = []
-        for day in self.button_states[self.month_name]: 
-            for month in calendar.month_name[:][:3]:
-                if month not in self.button_states:
-                    self.button_states[month] = self.button_states[self.month_name]
+        for month in self.button_states: 
+            self.button_states[month] = self.button_states[self.month_name]
+        for button in self.day_buttons:
+            button_name = str(button.name)
+            for month in self.button_states:
+                for day in self.button_states[month]:
+                    if day == button_name:
+                        self.activate_button(button, set_state_only=True)
+
                 
                 
 
+    def add_unset_option(self):
+        unset_button = Button("unset dates", name="unset", id="day_unset_option")
+        self.query_one("#days_options_horizontal", Horizontal).mount(unset_button)
 
 
     def on_button_pressed(self, event: Button.Pressed):
@@ -685,8 +699,17 @@ class DaySelector(Widget):
 
         elif "set_all" in button_name:
             self.set_all_dates()
+            self.add_unset_option()
 
+
+        elif "unset" in button_name:
+            for b in self.day_buttons:
+                self.deactivate_button(b)
+            self.button_states.clear()
+            button.remove()
+            
             ...
+
         else:
             self.selected_day(button, button_name)
             ...
@@ -717,7 +740,7 @@ class DaySelector(Widget):
                           Horizontal(*self.day_buttons[24:], classes="center_widget"),
                           Horizontal(Button("back", name="days_back_button"),
                                      Button("set date(s) for all months", name="days_set_all_button"),
-                                     classes="center_widget"), id="days_main_vertical")
+                                     classes="center_widget", id="days_options_horizontal"), id="days_main_vertical")
         return buttons
         
 
