@@ -630,19 +630,29 @@ class DaySelector(Widget):
                 set_days = self.button_states[month]
         if len(set_days) != 0:
             for button in self.day_buttons:
-                #this is were the bug is going wrong, 
-                # we're looping by length or something and appedning via 
-                #activate_button() function, I need to make the append, an arg 
-                #so that it doesnt happen automatically, or make another func 
                 for day in set_days:
                     if button.name == day:
                         self.activate_button(button, set_state_only=True)
                     
 
+    def get_last_day_in_month(self) -> int:
+        return max(calendar.monthcalendar(datetime.today().year, self.int_month)[-1])
+        
+
     def watch_displayed(self):
         if self.displayed == DisplayOption.HIDE:
             self.display = DisplayOption.HIDE.value
         else:
+            last_day = self.get_last_day_in_month()
+            for day in range(last_day):
+                for button in self.day_buttons:
+                    if int(button.name) > last_day: # pyright: ignore[]
+                        button.display = "none"
+                        self.app.query_one("#tg_goal_input", Input).value = f"last_day = {last_day} month = {self.int_month}"
+                    elif int(button.name) <= last_day:
+                        button.display = "block"
+                        self.app.query_one("#tg_goal_input", Input).value = f"last_day = {last_day} month = {self.int_month}"
+            self.app.query_one("#tg_goal_input", Input).value = f"month = {self.int_month}"
             self.display = DisplayOption.SHOW.value
             self._set_button_states()
 
@@ -650,9 +660,7 @@ class DaySelector(Widget):
 
     async def watch_month(self):
         self.int_month = self.month
-        self.month_name = calendar.month_name[self.int_month][:3]
-        stuff = calendar.month_abbr[self.int_month]
-        self.app.query_one("#tg_goal_input", Input).value = stuff
+        self.month_name = calendar.month_abbr[self.int_month]
 
         # self.app.query_one("#tg_goal_input", Input).value = str(f"month: {self.month} | int_month: {self.int_month} | month_name: {self.month_name}")
 
@@ -730,7 +738,8 @@ class DaySelector(Widget):
                 self.day_buttons.append(Button(label=day,
                                                name=day,
                                                compact=False,
-                                               classes="day_buttons"
+                                               classes="day_buttons",
+                                               id=f"day_button_{day}"
                                                ))
         buttons = Vertical(
                           # Static(self.month_name, classes=""),
