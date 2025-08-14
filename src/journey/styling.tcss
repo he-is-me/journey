@@ -217,40 +217,40 @@ SubGoalCollection{
 
 
 /*######## MonthlyDateSelector styles ########*/
-#month_jan{
+#qmonth_jan{
   margin: 1 0;
 }
-#month_feb{
+#qmonth_feb{
 	margin: 1 0;
 }
-#month_mar{
+#qmonth_mar{
 	margin: 1 0;
 }
-#month_apr{
+#qmonth_apr{
 	margin: 1 0;
 }
-#month_may{
+#qmonth_may{
 	margin: 1 0;
 }
-#month_jun{
+#qmonth_jun{
 	margin: 1 0;
 }
-#month_jul{
+#qmonth_jul{
 	margin: 1 0;
 }
-#month_aug{
+#qmonth_aug{
 	margin: 1 0;
 }
-#month_sep{
+#qmonth_sep{
 	margin: 1 0;
 }
-#month_oct{
+#qmonth_oct{
 	margin: 1 0;
 }
-#month_nov{
+#qmonth_nov{
 	margin: 1 0;
 }
-#month_dec{
+#qmonth_dec{
 	margin: 1 0;
 }
 

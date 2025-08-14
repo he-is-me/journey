@@ -498,8 +498,7 @@ class TaskGoalCollection(VerticalGroup):
             await self.set_frequency(widget, 30,100)
 
         elif "quaterly" in event_id:
-            widget = MonthlyDateSelector(id="tg_quaterly_widget",
-                                         quaterly=True)
+            widget = QuarterlyDateSelector(id="tg_quaterly_widget")
             await self.set_frequency(widget, 30,100)
             
 
@@ -808,14 +807,10 @@ class DaySelector(Widget):
 
 class MonthlyDateSelector(Widget):
     displayed: reactive[DisplayOption] = reactive(DisplayOption.SHOW)
-    def __init__(self,id: str, quaterly: bool=False):
+    def __init__(self,id: str):
         super().__init__(id=id)
-        self.quaterly = quaterly
         self.month_buttons: list[Button] = []
-        self.quarterly_month_buttons: list[Button] = []
-        self.quarterly_buttons: list[Button] = []
         self.container = self.app.query_one("#tg_temp_widget_container", Vertical)
-        self.selected_quarterly_buttons: list[str] = []
         self.day_selector_widget = DaySelector(id="day_selector_widget")
     
 
@@ -827,50 +822,8 @@ class MonthlyDateSelector(Widget):
 
 
 
-    def quaterly_row_selection(self, button: Button, button_name: str):
-        button_container = button.parent
-        if button_container != None:
-            self.app.query_one("#tg_goal_input", Input).value = str(button_container.children)
-            for b in button_container.children:
-                b_name = str(b.name)
-                if b_name != button_name and b_name not in self.selected_quarterly_buttons:
-                    button.styles.background = "green"
-                    button.styles.color = "white"
-                    b.styles.background = "green"
-                    b.styles.color = "white"
-                    self.selected_quarterly_buttons.append(b_name)
-                elif b_name in self.selected_quarterly_buttons:
-                    button.styles.background = "green"
-                    button.styles.color = "white"
-                    b.styles.background = None
-                    b.styles.color = None
-                    self.selected_quarterly_buttons.remove(b_name)
-
-        ...
-
-
-    def quarterly_button_action(self, button: Button):
-        name = str(button.name)
-        if "Q" in name:
-            self.quaterly_row_selection(button, name)
-            ...
-            return
-        if name in self.selected_quarterly_buttons:
-            button.styles.background = None
-            button.styles.color = None
-            self.selected_quarterly_buttons.remove(name)
-            return
-        button.styles.background = "green"
-        button.styles.color = "white"
-        self.selected_quarterly_buttons.append(name)
-        
-
-
     def on_button_pressed(self, event: Button.Pressed):
         button = event.button
-        if self.quaterly:
-            self.quarterly_button_action(button)
-            return
         assert type(int(button.name)) == int # pyright: ignore[]  
         month = int(button.name) #the name arg for each monb_name] # pyright: ignore[]
         self.day_selector_widget.month = month 
@@ -905,35 +858,91 @@ class MonthlyDateSelector(Widget):
                         id="month_buttons_horizontal")
             
 
-    def quarterly_widget(self):
-        for month_num, month in enumerate(calendar.month_name):
-            if month.strip() != "":
-                self.quarterly_month_buttons.append(Button(month[:3], 
-                                                           id=f"month_{str(month[:3]).lower()}", 
-                                                           name=str(month_num)))
-
-        return Horizontal(Vertical(Button("Q1",classes="center_align",compact=True,name="Q1"),
-						*self.quarterly_month_buttons[0:3],
-                        id=f"month_jan_to_mar"), 
-                        Vertical(Button("Q2", classes="center_align",compact=True,name="Q2"),
-						*self.quarterly_month_buttons[3:6],
-						id=f"month_apr_to_jun"),
-                        Vertical(Button("Q3", classes="center_align",compact=True,name="Q3"),
-						*self.quarterly_month_buttons[6:9],
-						id=f"month_jul_to_sep"),
-                        Vertical(Button("Q4", classes="center_align",compact=True,name="Q4"),
-						*self.quarterly_month_buttons[9:12],
-						id=f"month_oct_to_dec"),
-                        id="quarterly_month_buttons_horizontal")
-            
-
-
     
     def compose(self) -> ComposeResult:
-        if not self.quaterly:
-            yield self.monthly_widget()
-        else:
-            yield self.quarterly_widget()
+        yield self.monthly_widget()
+
+
+
+class QuarterlyDateSelector(Widget):
+    def __init__(self, id: str):
+        super().__init__(id=id)
+        self.month_buttons: list[Button] = []
+        self.buttons: list[Button] = []
+        self.selected_buttons: list[str] = []
+        self.container = self.app.query_one("#tg_temp_widget_container", Vertical)
+
+
+
+    def row_selection(self, quarter_button: Button, quarter_button_name: str):
+        button_container = quarter_button.parent
+        if button_container != None:
+            self.app.query_one("#tg_goal_input", Input).value = str(button_container.children)
+            for month_button in button_container.children:
+                month_name = str(month_button.name)
+                if month_name != quarter_button_name and month_name not in self.selected_buttons:
+                    quarter_button.styles.background = "green"
+                    quarter_button.styles.color = "white"
+                    month_button.styles.background = "green"
+                    month_button.styles.color = "white"
+                    self.selected_buttons.append(month_name)
+                elif month_name in self.selected_buttons:
+                    quarter_button.styles.background = "transparent"
+                    quarter_button.styles.color = None
+                    month_button.styles.background = None
+                    month_button.styles.color = None
+                    self.selected_buttons.remove(month_name)
+
+
+
+    @on(Button.Pressed, " #Q1, #Q2, #Q3, #Q4 ")
+    def whole_quarter_button_pressed(self, event: Button.Pressed):
+        button_name = str(event.button.name)
+        self.row_selection(event.button, button_name)
+        return
+
+    @on(Button.Pressed, """#qmonth_jan,#qmonth_feb,#qmonth_mar,#qmonth_apr,
+                           #qmonth_may,#qmonth_jun,#qmonth_jul,#qmonth_aug,
+                           #qmonth_sep,#qmonth_oct,#qmonth_nov,#qmonth_dec""")
+    def month_button_pressed(self, event: Button.Pressed):
+        button_name = str(event.button.name)
+        button = event.button
+        if button_name in self.selected_buttons:
+            button.styles.background = None
+            button.styles.color = None
+            self.selected_buttons.remove(button_name)
+            return
+        button.styles.background = "green"
+        button.styles.color = "white"
+        self.selected_buttons.append(button_name)
+        
+
+    def spawn_widget(self):
+        for month_num, month in enumerate(calendar.month_abbr):
+            if month_num == 0:
+                continue
+            self.month_buttons.append(Button(month, 
+                                                       id=f"qmonth_{str(month).lower()}", 
+                                                       name=str(month_num)))
+
+        return Horizontal(Vertical(Button("Q1",classes="center_align",compact=True,name="Q1", id="Q1"),
+						*self.month_buttons[0:3],
+                        id=f"month_jan_to_mar"), 
+                        Vertical(Button("Q2", classes="center_align",compact=True,name="Q2", id="Q2"),
+						*self.month_buttons[3:6],
+						id=f"month_apr_to_jun"),
+                        Vertical(Button("Q3", classes="center_align",compact=True,name="Q3", id="Q3"),
+						*self.month_buttons[6:9],
+						id=f"month_jul_to_sep"),
+                        Vertical(Button("Q4", classes="center_align",compact=True,name="Q4", id="Q4"),
+						*self.month_buttons[9:12],
+						id=f"month_oct_to_dec"),
+                        id="month_buttons_horizontal")
+            
+
+    def compose(self) -> ComposeResult:
+        yield self.spawn_widget()
+        
             
 
 
