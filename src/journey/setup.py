@@ -568,10 +568,6 @@ class WeeklyDaySelector(Widget):
                 id="wk_buttons_horizontal")
 
 class DaySelector(Widget):
-    month = reactive(1)
-    year = datetime.today().year
-    int_month = 1
-    month_name = str(calendar.month_name[int_month])[:3] # pyright: ignore[]
     displayed: reactive[DisplayOption] = reactive(DisplayOption.SHOW)
     def __init__(self, id: str):
         super().__init__(id=id)
@@ -579,6 +575,12 @@ class DaySelector(Widget):
         self.selected_days: list[str] = []
         self.container = self.app.query_one("#tg_temp_widget_container", Vertical)
         self.button_states: dict[str,list[str]] = {} 
+        self.current_day_count: int|None = None
+        self.previous_day_count: int|None = None
+        self.month = 0
+        self.int_month = 0
+        self.year = datetime.today().year
+        self.month_name = str(calendar.month_name[self.int_month])[:3] # pyright: ignore[]
     
     @staticmethod
     def _reset_button_state(func):
@@ -635,34 +637,28 @@ class DaySelector(Widget):
                         self.activate_button(button, set_state_only=True)
                     
 
-    def get_last_day_in_month(self) -> int:
-        return max(calendar.monthcalendar(datetime.today().year, self.int_month)[-1])
+    def get_last_day_in_month(self) -> int|None:
+        try:
+            return max(calendar.monthcalendar(datetime.today().year, self.month)[-1])
+        except calendar.IllegalMonthError:
+            raise ValueError(f"month == {self.month}")
         
 
     def watch_displayed(self):
         if self.displayed == DisplayOption.HIDE:
             self.display = DisplayOption.HIDE.value
         else:
-            last_day = self.get_last_day_in_month()
-            for day in range(last_day):
-                for button in self.day_buttons:
-                    if int(button.name) > last_day: # pyright: ignore[]
-                        button.display = "none"
-                        self.app.query_one("#tg_goal_input", Input).value = f"last_day = {last_day} month = {self.int_month}"
-                    elif int(button.name) <= last_day:
-                        button.display = "block"
-                        self.app.query_one("#tg_goal_input", Input).value = f"last_day = {last_day} month = {self.int_month}"
-            self.app.query_one("#tg_goal_input", Input).value = f"month = {self.int_month}"
             self.display = DisplayOption.SHOW.value
             self._set_button_states()
 
 
 
-    async def watch_month(self):
+    def watch_month(self):
         self.int_month = self.month
-        self.month_name = calendar.month_abbr[self.int_month]
+        self.month_name = calendar.month_abbr[self.month]
+        self.previous_day_count = self.current_day_count
+        self.current_day_count = self.get_last_day_in_month()
 
-        # self.app.query_one("#tg_goal_input", Input).value = str(f"month: {self.month} | int_month: {self.int_month} | month_name: {self.month_name}")
 
 
 
@@ -727,20 +723,28 @@ class DaySelector(Widget):
 
 
     def on_mount(self):
+        
         self.container.styles.height = "35%"
+        self.app.query_one("#tg_goal_input", Input).value = f"last day = {self.current_day_count} | month = {self.month} | month name = {self.month_name}"
+
+
 
     def spawn_buttons(self):
         """spawns all buttons needed for date selection for given month and year"""
 
-        for date in calendar.Calendar().itermonthdays3(self.year, self.month):
-            day = str(date[2])
-            if date[1] == self.month:
-                self.day_buttons.append(Button(label=day,
-                                               name=day,
-                                               compact=False,
-                                               classes="day_buttons",
-                                               id=f"day_button_{day}"
-                                               ))
+        try:
+            for date in calendar.Calendar().itermonthdays3(self.year, self.month):
+                day = str(date[2])
+                if date[1] == self.month:
+                    self.day_buttons.append(Button(label=day,
+                                                   name=day,
+                                                   compact=False,
+                                                   classes="day_buttons",
+                                                   id=f"day_button_{day}"
+                                                   ))
+        except calendar.IllegalMonthError: 
+            raise ValueError("ERROR: Month was likely not set before mounting or month was greater than 12")
+
         buttons = Vertical(
                           # Static(self.month_name, classes=""),
                           Horizontal(*self.day_buttons[0:8], classes="center_widget"),
@@ -824,13 +828,11 @@ class MonthlyDateSelector(Widget):
             return
         assert type(int(button.name)) == int # pyright: ignore[]  
         month = int(button.name) #the name arg for each monb_name] # pyright: ignore[]
-        self.displayed = DisplayOption.HIDE
-
+        self.day_selector_widget.month = month 
         if not self.day_selector_widget.is_mounted:
             self.container.mount(self.day_selector_widget)
             return
-        self.day_selector_widget.month = month
-        self.day_selector_widget.month_name = calendar.month_name[month][:3]
+        self.displayed = DisplayOption.HIDE
         self.day_selector_widget.displayed = DisplayOption.SHOW
         
 
