@@ -6,12 +6,14 @@ from enum import Enum
 from functools import lru_cache
 from logging import root
 import math
+from textual import widget
 from textual.app import App, ComposeResult
 from datetime import  datetime
 from textual import on
 from textual.binding import Binding
 from textual.color import Color
 from textual.containers import Center, Horizontal, Vertical, VerticalGroup, VerticalScroll
+from textual.css.query import NoMatches
 from textual.reactive import reactive
 from textual.types import DuplicateID
 from textual.validation import Integer, Length, ValidationResult, Validator
@@ -39,6 +41,14 @@ class GoalType(Enum):
     TASK_GOAL = 'task'
 
 
+@dataclass()
+class TreeNodeManager_2():
+    last_added_node: tuple[TreeNode,str]|None = None
+    last_added_main_node: tuple[TreeNode,str]|None = None
+    last_added_task_node: tuple[TreeNode,str]|None = None
+    last_added_sub_node: tuple[TreeNode,str]|None = None
+    last_added_node_type: GoalType|None = None
+    node_dict: dict[GoalType,dict ] = f
 
 @dataclass()
 class TreeNodeManager():
@@ -168,6 +178,7 @@ class GoalTree(VerticalGroup):
     root_node = initial_tree.root
     tree_root: reactive[TreeNode] = reactive(root_node)
     root_node.expand()
+    last_added_node = node_manager.last_added_node
     
     def insert_new_branch(self, label: str, node_data: dict) -> bool:
         node = self.root_node.add(label=label, data=node_data)
@@ -439,7 +450,7 @@ class TaskGoalCollection(VerticalGroup):
             id = "#" + id
         return self.query_one(id, Vertical)
 
-    async def set_frequency(self, 
+    def set_frequency(self, 
                             widget: Widget,
                             height: int,
                             width: int,
@@ -456,13 +467,23 @@ class TaskGoalCollection(VerticalGroup):
         assert width <= 100 and width >= 0
 
         try:
-            await container.mount(widget)
+            container.mount(widget)
             container.styles.height = str(height) + '%'
             container.styles.width = str(width) + '%' 
         except Exception:
             return
 
         self.mounted_widget = widget
+
+
+    def mount_due_date_widget(self, widget: Widget):
+       date_container = self.app.query_one("#tg_difficulty_date_horizontal", Horizontal)
+       try:
+           date_container.mount(widget)
+           self.mounted_widget = widget
+       except Exception:
+            #if this triggers the widget is already mounted and an DuplicateIds err gets thrown.
+           pass
 
 
     @on(Button.Pressed, """#tg_one_time_thing_btn,
@@ -473,14 +494,38 @@ class TaskGoalCollection(VerticalGroup):
     async def pressed_frequency(self, event: Button.Pressed):
         #TODO put all logic under checks in 1 or 2 function calls to clean this shit up !
         event_id = str(event.button.id)
+        container = self.get_container(id="tg_temp_widget_container")
         if self.mounted_widget != None: 
-            await self.mounted_widget.remove()
+            for widget in container.children:
+                if widget.children != None:
+                    for child in widget.children:
+                        child.remove()
+                widget.remove()
+        try:
+            date_input_ref = self.app.query_one("#tg_due_date", Center)
+        except NoMatches:
+            pass
+        else:
+            date_input_ref.remove()
+
 
         if "one_time" in event_id:
-            if self.mounted_widget != None:
-                container = self.query_one("#tg_temp_widget_container", Vertical)
-                container.styles.width = "0"
-                container.styles.height = "0"
+                
+            container = self.query_one("#tg_temp_widget_container", Vertical)
+            container.styles.width = "0"
+            container.styles.height = "0"
+            widget = Center(Input(placeholder="Due Date (Day/Month/Year or Month/Year )", 
+                               validate_on=['changed'],
+                               validators=[DateValidator()]),
+                               id="tg_due_date")
+
+            try:
+                date_input_ref = self.app.query_one("#tg_due_date", Center)
+            except NoMatches:
+                self.mount_due_date_widget(widget)
+            else:
+                date_input_ref.remove()
+
 
         elif "daily" in event_id:
             if self.mounted_widget != None:
@@ -491,15 +536,15 @@ class TaskGoalCollection(VerticalGroup):
 
         elif "weekly" in event_id:
             widget = WeeklyDaySelector(id="tg_weekly_widget")
-            await self.set_frequency(widget, 15,100)
+            self.set_frequency(widget, 15,100)
 
         elif "monthly" in event_id:
             widget = MonthlyDateSelector(id="tg_monthly_widget")
-            await self.set_frequency(widget, 30,100)
+            self.set_frequency(widget, 30,100)
 
         elif "quaterly" in event_id:
             widget = QuarterlyDateSelector(id="tg_quaterly_widget")
-            await self.set_frequency(widget, 30,100)
+            self.set_frequency(widget, 30,100)
             
 
     def compose(self) -> ComposeResult:
@@ -515,13 +560,10 @@ class TaskGoalCollection(VerticalGroup):
                                   Button("Quaterly", id="tg_quaterly_btn"),
                                   id="tg_frequency_horizontal_container"),
               Horizontal(
-                       Input(placeholder="Difficulty (1-3) | 1 = Easy, 3 = Hard", id="tg_difficulty", 
+                       Center(Input(placeholder="Difficulty (1-3) | 1 = Easy, 3 = Hard", id="tg_difficulty", 
                              type="number",
                              validators=[Integer(minimum=1, maximum=3)],
-                             validate_on=["blur","submitted"]),
-                       Input(placeholder="Due Date (Day/Month/Year or Month/Year )", id="tg_due_date",
-                             validate_on=['changed'],
-                             validators=[DateValidator()]),
+                             validate_on=["blur","submitted"])),
                        id="tg_difficulty_date_horizontal"),
         Vertical(id="tg_temp_widget_container"),
         Notification(static_id="tg_notification_static"),
@@ -877,23 +919,35 @@ class QuarterlyDateSelector(Widget):
     def row_selection(self, quarter_button: Button, quarter_button_name: str):
         button_container = quarter_button.parent
         if button_container != None:
-            self.app.query_one("#tg_goal_input", Input).value = str(button_container.children)
-            for month_button in button_container.children:
-                month_name = str(month_button.name)
-                if month_name != quarter_button_name and month_name not in self.selected_buttons:
-                    quarter_button.styles.background = "green"
+            buttons = [button for button in button_container.children]
+            if quarter_button_name not in self.selected_buttons:
+                self.selected_buttons.append(quarter_button_name)
+                for button in buttons:
+                    button_name = str(button.name)
                     quarter_button.styles.color = "white"
-                    month_button.styles.background = "green"
-                    month_button.styles.color = "white"
-                    self.selected_buttons.append(month_name)
-                elif month_name in self.selected_buttons:
-                    quarter_button.styles.background = "transparent"
+                    quarter_button.styles.background = "green"
+                    button.styles.color = "white"
+                    button.styles.background = "green"
+                    try:
+                        self.selected_buttons.append(button_name)
+                    except ValueError:
+                        pass
+            else:
+                self.selected_buttons.remove(quarter_button_name)
+                for button in buttons:
+                    button_name = str(button.name)
                     quarter_button.styles.color = None
-                    month_button.styles.background = None
-                    month_button.styles.color = None
-                    self.selected_buttons.remove(month_name)
+                    quarter_button.styles.background = None
+                    button.styles.color = None
+                    button.styles.background = None
+                    try:
+                        self.selected_buttons.remove(button_name)
+                    except ValueError:
+                        pass
 
+             
 
+                    #
 
     @on(Button.Pressed, " #Q1, #Q2, #Q3, #Q4 ")
     def whole_quarter_button_pressed(self, event: Button.Pressed):
@@ -1101,19 +1155,22 @@ class JourneyApp(App):
         if not self.final_input_validation(input_data): #make sure inputs are valid
             return False
 
-        selected_tier = None
-        for tier  in tier_data:
-            if tier.value == True:
-                selected_tier = tier.label
-                if "1" in str(selected_tier):
-                    selected_tier = 1
-                elif "2" in str(selected_tier):
-                    selected_tier = 2
-                else:
-                    selected_tier = 3
-        if selected_tier == None: 
-            self.query_one(Notification).send_message(Text("Tier Not Selected !"),level=NotificationLevel.ERROR)
-            return False
+        if self.current_page_object != TaskGoalCollection:
+            selected_tier = None
+            for tier  in tier_data:
+                if tier.value == True:
+                    selected_tier = tier.label
+                    if "1" in str(selected_tier):
+                        selected_tier = 1
+                    elif "2" in str(selected_tier):
+                        selected_tier = 2
+                    else:
+                        selected_tier = 3
+            if selected_tier == None: 
+                self.query_one(Notification).send_message(Text("Tier Not Selected !"),level=NotificationLevel.ERROR)
+                return False
+        else:
+            selected_tier = None
 
         for i in input_data:
             input_name = str(i.id).removeprefix(id_prefix)
@@ -1130,13 +1187,16 @@ class JourneyApp(App):
                 complete_data[text_area_name] = i.text
 
         # a shitty way of checking which page is up to insert new branch or on branch need to change later to something more robust
+        goal_tree = self.query_one(GoalTree)
         if "mg" in str(input_data[0].id): 
-            self.query_one(GoalTree).insert_new_branch(complete_data['goal_input'], node_data=complete_data)
+            goal_tree.insert_new_branch(complete_data['goal_input'], node_data=complete_data)
         #DEBUG
             # self.app.query_one(f"#{id_prefix}description", TextArea).text = str(self.app.query_one(GoalTree).node_manager.last_added_node)
         elif "sg" in str(input_data[0].id):
-            self.query_one(GoalTree).insert_on_last_branch(complete_data['goal_input'], node_data=complete_data)
+            goal_tree.insert_on_last_branch(complete_data['goal_input'], node_data=complete_data)
         #DEBUG
+        elif "tg" in str(input_data[0].id):  
+            goal_tree.insert_on_last_branch(sub_node_label=goal_tree.last_added_node,task_node_label=complete_data['goal_input'], node_data=complete_data)
             # self.app.query_one(f"#{id_prefix}description", TextArea).text = str(self.app.query_one(GoalTree).node_manager.last_added_sub_node)
 
 

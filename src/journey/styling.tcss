@@ -197,14 +197,23 @@ SubGoalCollection{
 
 #tg_difficulty_date_horizontal{
   height: auto;
+  border: round red;
 }
 
 #tg_difficulty{
   margin: 1 4;
-  width: 1fr;
+  width: 100%;
+}
+#tg_difficulty_center_container{
+  margin: 1 4;
+  width: 50%;
 }
 
 #tg_due_date{
+  margin: 1 4;
+  width: 1fr;
+}
+#tg_due_date_center_container{
   margin: 1 4;
   width: 1fr;
 }
@@ -307,6 +316,6 @@ SubGoalCollection{
 .center_align{
   text-align: center;
 }
-.center_widget{
+.center_widget {
   align: center middle;
 }
